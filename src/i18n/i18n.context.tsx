@@ -71,12 +71,12 @@
  * route is also prefixed. The above approach is documented but not activated
  * to keep the existing clean URL structure intact.
  *
- * ## Translation function `t(key)`
+ * ## Translation function `translate(key)`
  *
  * Keys are dot-notation paths into the locale object:
  * ```ts
- * t('nav.home')        // → 'Home' | 'الرئيسية'
- * t('home.hero.title') // → "Discover products you'll love" | 'اكتشف...'
+ * translate('nav.home')        // → 'Home' | 'الرئيسية'
+ * translate('home.hero.title') // → "Discover products you'll love" | 'اكتشف...'
  * ```
  *
  * If a key is not found the key string itself is returned as a fallback,
@@ -104,6 +104,8 @@ import {
 } from "react";
 import { en } from "./locales/en";
 import { ar } from "./locales/ar";
+import { useInitStore } from "@/core/init/init.store";
+import { fetchLocaleBundle } from "@/core/init/init.service";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -115,7 +117,7 @@ export type Lang = "en" | "ar";
 /** Writing direction derived from the language. */
 export type Dir = "ltr" | "rtl";
 
-/** Map of language codes to their locale objects. */
+/** Static fallback locales (used before dynamic bundle loads). */
 const LOCALES: Record<Lang, typeof en> = { en, ar };
 
 /** The direction associated with each supported language. */
@@ -138,7 +140,7 @@ export type I18nContextValue = {
    *                   Defaults to the key string itself.
    * @returns        The translated string.
    */
-  t: (key: string, fallback?: string) => string;
+  translate: (key: string, fallback?: string) => string;
   /**
    * Switches the active language. Persists to localStorage and updates the
    * `dir` and `lang` attributes on `<html>` immediately.
@@ -221,8 +223,11 @@ function resolve(
 export function I18nProvider({ children }: { readonly children: ReactNode }) {
   const [lang, setLangState] = useState<Lang>(loadStoredLang);
 
+  // Dynamic bundles from init store (fetched by AppInitializer or on lang switch)
+  const dynamicLocales = useInitStore((s) => s.dynamicLocales);
+  const setLocaleBundle = useInitStore((s) => s.setLocaleBundle);
+
   // Apply lang + dir to <html> whenever language changes.
-  // Done in useEffect so SSR-safe (no document access at render time).
   useEffect(() => {
     const dir = LANG_DIR[lang];
     document.documentElement.lang = lang;
@@ -232,24 +237,40 @@ export function I18nProvider({ children }: { readonly children: ReactNode }) {
     } catch {
       // Non-fatal
     }
-  }, [lang]);
+
+    // Fetch dynamic bundle for the new language if not already loaded
+    if (!dynamicLocales[lang]) {
+      fetchLocaleBundle(lang).then((bundle) => {
+        setLocaleBundle(lang, bundle);
+      });
+    }
+  }, [lang, dynamicLocales, setLocaleBundle]);
 
   const setLang = useCallback((language: Lang) => {
     setLangState(language);
   }, []);
 
-  const t = useCallback(
+  const translate = useCallback(
     (key: string, fallback?: string): string => {
-      const locale = LOCALES[lang] as Record<string, unknown>;
-      return resolve(locale, key, fallback ?? key);
+      const dynamicLocale = dynamicLocales[lang] as Record<string, unknown> | undefined;
+      const staticLocale = LOCALES[lang] as Record<string, unknown>;
+
+      // Try dynamic bundle first (server-overridable). If the key is missing
+      // (e.g. bundle was fetched before a new key was added), fall through to
+      // the static TypeScript import which always has the latest keys.
+      if (dynamicLocale) {
+        const result = resolve(dynamicLocale, key, '');
+        if (result !== '') return result;
+      }
+      return resolve(staticLocale, key, fallback ?? key);
     },
-    [lang],
+    [lang, dynamicLocales],
   );
 
   const dir = LANG_DIR[lang];
 
   return (
-    <I18nContext.Provider value={{ lang, dir, t, setLang }}>
+    <I18nContext.Provider value={{ lang, dir, translate, setLang }}>
       {children}
     </I18nContext.Provider>
   );

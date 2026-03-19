@@ -60,6 +60,7 @@ import { getProducts, deleteProduct, getCategories } from '@/api/products.api';
 import { TableRowSkeleton } from '@/components/ui/Skeleton';
 import DeleteModal from '@/components/admin/DeleteModal';
 import { useDebounce } from '@/hooks/useDebounce';
+import { useI18n } from '@/i18n/i18n.context';
 import type { Product, ProductCategory, PaginatedData } from '@/types/product.types';
 
 // ---------------------------------------------------------------------------
@@ -76,17 +77,18 @@ type SortDir = 'asc' | 'desc';
 // ---------------------------------------------------------------------------
 
 function StockBadge({ stock }: { stock: number }) {
+  const { translate } = useI18n();
   if (stock === 0) {
     return (
       <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400">
-        Out of stock
+        {translate('admin.products.outOfStock')}
       </span>
     );
   }
   if (stock < 10) {
     return (
       <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400">
-        Low ({stock})
+        {translate('admin.products.lowStock').replace('{{count}}', String(stock))}
       </span>
     );
   }
@@ -107,6 +109,7 @@ function StockBadge({ stock }: { stock: number }) {
  */
 export default function ProductsListPage() {
   const navigate = useNavigate();
+  const { translate } = useI18n();
 
   // Data state
   const [products, setProducts] = useState<Product[]>([]);
@@ -218,10 +221,10 @@ export default function ProductsListPage() {
       {/* Page heading */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div>
-          <h1 className="text-xl font-bold text-gray-900 dark:text-white">Products</h1>
+          <h1 className="text-xl font-bold text-gray-900 dark:text-white">{translate('admin.products.title')}</h1>
           {pagination && (
             <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
-              {totalItems} total products
+              {translate('admin.products.totalProducts').replace('{{count}}', String(totalItems))}
             </p>
           )}
         </div>
@@ -231,7 +234,7 @@ export default function ProductsListPage() {
           className="flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-xl transition-colors"
         >
           <Plus size={16} />
-          New Product
+          {translate('admin.products.newProduct')}
         </button>
       </div>
 
@@ -245,7 +248,7 @@ export default function ProductsListPage() {
           />
           <input
             type="search"
-            placeholder="Search products…"
+            placeholder={translate('admin.products.search')}
             value={searchInput}
             onChange={(e: ChangeEvent<HTMLInputElement>) => setSearchInput(e.target.value)}
             className="w-full pl-9 pr-4 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
@@ -258,7 +261,7 @@ export default function ProductsListPage() {
           onChange={(e: ChangeEvent<HTMLSelectElement>) => setSelectedCategory(e.target.value)}
           className="px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
         >
-          <option value="">All categories</option>
+          <option value="">{translate('admin.products.allCategories')}</option>
           {categories?.map((cat) => (
             <option key={cat._id} value={cat._id}>
               {cat.name}
@@ -272,9 +275,9 @@ export default function ProductsListPage() {
           onChange={(e: ChangeEvent<HTMLSelectElement>) => setSortBy(e.target.value as SortField)}
           className="px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
         >
-          <option value="createdAt">Sort: Date</option>
-          <option value="name">Sort: Name</option>
-          <option value="price">Sort: Price</option>
+          <option value="createdAt">{translate('admin.products.sort.date')}</option>
+          <option value="name">{translate('admin.products.sort.name')}</option>
+          <option value="price">{translate('admin.products.sort.price')}</option>
         </select>
 
         {/* Sort direction */}
@@ -283,8 +286,8 @@ export default function ProductsListPage() {
           onChange={(e: ChangeEvent<HTMLSelectElement>) => setSortType(e.target.value as SortDir)}
           className="px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
         >
-          <option value="desc">Descending</option>
-          <option value="asc">Ascending</option>
+          <option value="desc">{translate('admin.products.sort.descending')}</option>
+          <option value="asc">{translate('admin.products.sort.ascending')}</option>
         </select>
       </div>
 
@@ -301,7 +304,7 @@ export default function ProductsListPage() {
             className="flex items-center gap-1.5 text-xs font-medium text-red-600 dark:text-red-400 hover:underline"
           >
             <RefreshCw size={13} />
-            Retry
+            {translate('admin.products.retry')}
           </button>
         </div>
       )}
@@ -314,22 +317,22 @@ export default function ProductsListPage() {
               <tr className="border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-750">
                 <th className="w-10 px-4 py-3 text-left" />
                 <th className="w-14 px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
-                  Image
+                  {translate('admin.products.table.image')}
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
-                  Name
+                  {translate('admin.products.table.name')}
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide hidden sm:table-cell">
-                  Category
+                  {translate('admin.products.table.category')}
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
-                  Price
+                  {translate('admin.products.table.price')}
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide hidden md:table-cell">
-                  Stock
+                  {translate('admin.products.table.stock')}
                 </th>
                 <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
-                  Actions
+                  {translate('admin.products.table.actions')}
                 </th>
               </tr>
             </thead>
@@ -426,14 +429,14 @@ export default function ProductsListPage() {
               {!loading && products.length === 0 && !error && (
                 <tr>
                   <td colSpan={7} className="text-center py-16 text-gray-400 dark:text-gray-500">
-                    <p className="text-sm">No products found.</p>
+                    <p className="text-sm">{translate('admin.products.empty')}</p>
                     {debouncedSearch && (
                       <button
                         type="button"
                         onClick={() => setSearchInput('')}
                         className="mt-2 text-sm text-indigo-600 dark:text-indigo-400 hover:underline"
                       >
-                        Clear search
+                        {translate('admin.products.clearSearch')}
                       </button>
                     )}
                   </td>
@@ -447,7 +450,10 @@ export default function ProductsListPage() {
         {pagination && totalPages > 1 && (
           <div className="flex items-center justify-between px-4 py-3 border-t border-gray-200 dark:border-gray-700">
             <p className="text-sm text-gray-500 dark:text-gray-400">
-              Showing {startItem}–{endItem} of {totalItems}
+              {translate('admin.products.showing')
+                .replace('{{from}}', String(startItem))
+                .replace('{{to}}', String(endItem))
+                .replace('{{total}}', String(totalItems))}
             </p>
 
             <div className="flex items-center gap-1">

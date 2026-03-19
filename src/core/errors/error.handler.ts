@@ -142,6 +142,12 @@ export function handleApiError(
  * Used by `DeepLinkGuard`, `FeatureGuard`, and `WhitelistGuard` when they
  * detect a condition that should surface a user-facing error.
  *
+ * The push is deferred with `setTimeout` so it runs **after** the current
+ * render cycle. Guards call this during render (before returning `<Navigate>`),
+ * and a synchronous `setState` on a sibling component (`GlobalErrorRenderer`)
+ * during another component's render triggers a React warning:
+ * "Cannot update a component while rendering a different component."
+ *
  * @param code    - The error code to push.
  * @param options - Optional display overrides.
  */
@@ -149,5 +155,7 @@ export function handleRouteError(
   code: ErrorCode,
   options?: PushErrorOptions,
 ): void {
-  useErrorStore.getState().pushError(code, options);
+  setTimeout(() => {
+    useErrorStore.getState().pushError(code, options);
+  }, 0);
 }

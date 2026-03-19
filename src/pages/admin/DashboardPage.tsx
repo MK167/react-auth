@@ -33,6 +33,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useI18n } from '@/i18n/i18n.context';
 import {
   Package,
   ShoppingBag,
@@ -70,6 +71,7 @@ type Stat = {
 
 function StatCard({ stat, loading }: { stat: Stat; loading: boolean }) {
   const navigate = useNavigate();
+  const { translate } = useI18n();
   return (
     <button
       type="button"
@@ -92,7 +94,7 @@ function StatCard({ stat, loading }: { stat: Stat; loading: boolean }) {
         </div>
       </div>
       <div className="mt-3 flex items-center gap-1 text-xs text-indigo-600 dark:text-indigo-400 font-medium group-hover:gap-2 transition-all">
-        View all <ArrowRight size={12} />
+        {translate('admin.dashboard.viewAll')} <ArrowRight size={12} />
       </div>
     </button>
   );
@@ -399,6 +401,7 @@ function ErrorSimulatorPanel() {
 
 export default function DashboardPage() {
   const navigate = useNavigate();
+  const { translate } = useI18n();
   const [totalProducts, setTotalProducts] = useState<number | null>(null);
   const [totalCategories, setTotalCategories] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
@@ -424,7 +427,7 @@ export default function DashboardPage() {
 
   const stats: Stat[] = [
     {
-      label: 'Total Products',
+      label: translate('admin.dashboard.totalProducts'),
       value: totalProducts ?? '—',
       icon: <Package size={20} />,
       iconBg: 'bg-indigo-100 dark:bg-indigo-900/40',
@@ -432,7 +435,7 @@ export default function DashboardPage() {
       to: '/admin/products',
     },
     {
-      label: 'Categories',
+      label: translate('admin.dashboard.categories'),
       value: totalCategories ?? '—',
       icon: <Tag size={20} />,
       iconBg: 'bg-emerald-100 dark:bg-emerald-900/40',
@@ -440,7 +443,7 @@ export default function DashboardPage() {
       to: '/admin/categories',
     },
     {
-      label: 'Orders',
+      label: translate('admin.dashboard.orders'),
       value: '—',
       icon: <ShoppingBag size={20} />,
       iconBg: 'bg-amber-100 dark:bg-amber-900/40',
@@ -448,7 +451,7 @@ export default function DashboardPage() {
       to: '/admin/orders',
     },
     {
-      label: 'Revenue',
+      label: translate('admin.dashboard.revenue'),
       value: '—',
       icon: <TrendingUp size={20} />,
       iconBg: 'bg-rose-100 dark:bg-rose-900/40',
@@ -461,9 +464,9 @@ export default function DashboardPage() {
     <div className="space-y-6">
       {/* Page heading */}
       <div>
-        <h1 className="text-xl font-bold text-gray-900 dark:text-white">Dashboard</h1>
+        <h1 className="text-xl font-bold text-gray-900 dark:text-white">{translate('admin.dashboard.title')}</h1>
         <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
-          Overview of your store
+          {translate('admin.dashboard.subtitle')}
         </p>
       </div>
 
@@ -477,13 +480,13 @@ export default function DashboardPage() {
       {/* Quick actions */}
       <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-5">
         <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-4">
-          Quick actions
+          {translate('admin.dashboard.quickActions')}
         </h2>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           {[
-            { label: 'Manage Products', to: '/admin/products', icon: <Package size={16} /> },
-            { label: 'Manage Categories', to: '/admin/categories', icon: <Tag size={16} /> },
-            { label: 'View Orders', to: '/admin/orders', icon: <ShoppingBag size={16} /> },
+            { label: translate('admin.dashboard.manageProducts'), to: '/admin/products', icon: <Package size={16} /> },
+            { label: translate('admin.dashboard.manageCategories'), to: '/admin/categories', icon: <Tag size={16} /> },
+            { label: translate('admin.dashboard.viewOrders'), to: '/admin/orders', icon: <ShoppingBag size={16} /> },
           ].map((action) => (
             <button
               key={action.to}

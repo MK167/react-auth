@@ -5,28 +5,14 @@ import {
   FacebookAuthProvider,
   OAuthProvider,
 } from "firebase/auth";
+import { environment } from "@/environments/environment";
 
 /**
- * Firebase configuration object. The values are loaded from environment variables
- * defined in the .env file at the root of the project. Make sure to create this
- * file and add the necessary Firebase configuration values before running the app.
- * Example .env file:
- * VITE_FIREBASE_API_KEY=your_api_key
- * VITE_FIREBASE_AUTH_DOMAIN=your_auth_domain
- * VITE_FIREBASE_PROJECT_ID=your_project_id
- * VITE_FIREBASE_STORAGE_BUCKET=your_storage_bucket
- * VITE_FIREBASE_MESSAGING_SENDER_ID=your_messaging_sender_id
- * VITE_FIREBASE_APP_ID=your_app_id
- * Note: The VITE_ prefix is required for environment variables to be accessible in the client-side code when using Vite.
+ * Firebase configuration loaded from the typed environment object.
+ * All values are sourced from `VITE_FIREBASE_*` variables in the `.env` files.
+ * See `src/environments/environment.ts` for the full variable reference.
  */
-const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID,
-};
+const firebaseConfig = environment.firebase;
 
 
 /**

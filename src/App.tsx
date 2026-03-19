@@ -42,21 +42,33 @@ import { ThemeProvider } from '@/themes/theme.context';
 import GlobalLoader from '@/components/common/GlobalLoader';
 import GlobalErrorRenderer from '@/core/errors/GlobalErrorRenderer';
 import { ErrorBoundary } from '@/core/errors/ErrorBoundary';
+import { AppInitializer } from '@/core/init/AppInitializer';
 import AppRouter from '@/routes/AppRouter';
 
 /**
  * Root application component. No business logic lives here — it is purely a
  * composition of providers, global UI components, and the router.
+ *
+ * Provider order (outer → inner):
+ * 1. I18nProvider    — language + RTL (reads from init.store for dynamic bundles)
+ * 2. ThemeProvider   — dark / light / custom theme
+ * 3. AppInitializer  — blocks router until locale + error config bundles load
+ * 4. ErrorBoundary   — top-level render-error safety net
+ * 5. GlobalLoader    — fullscreen API spinner
+ * 6. GlobalErrorRenderer — error page / modal / toast overlays
+ * 7. AppRouter       — route tree (only mounts when AppInitializer is ready)
  */
 function App() {
   return (
     <I18nProvider>
       <ThemeProvider>
-        <ErrorBoundary>
-          <GlobalLoader />
-          <GlobalErrorRenderer />
-          <AppRouter />
-        </ErrorBoundary>
+        <AppInitializer>
+          <ErrorBoundary>
+            <GlobalLoader />
+            <GlobalErrorRenderer />
+            <AppRouter />
+          </ErrorBoundary>
+        </AppInitializer>
       </ThemeProvider>
     </I18nProvider>
   );

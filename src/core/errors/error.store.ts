@@ -35,6 +35,7 @@
 
 import { create } from 'zustand';
 import { ERROR_CONFIG_MAP } from './error.config';
+import { getDynamicErrorConfig } from '@/core/init/init.store';
 import type {
   ActiveError,
   ErrorCode,
@@ -126,7 +127,9 @@ export const useErrorStore = create<ErrorStoreState>((set) => ({
   inlineError: null,
 
   pushError: (code, options = {}) => {
-    const config = ERROR_CONFIG_MAP[code];
+    // Prefer dynamically loaded config (from backend/CMS) over static map
+    const dynamicMap = getDynamicErrorConfig();
+    const config = (dynamicMap?.[code as keyof typeof dynamicMap] ?? ERROR_CONFIG_MAP[code]) as typeof ERROR_CONFIG_MAP[typeof code];
 
     // Fall through to UNKNOWN_ERROR config if the code is somehow missing.
     const resolvedConfig = config ?? ERROR_CONFIG_MAP['UNKNOWN_ERROR'];

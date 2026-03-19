@@ -78,7 +78,7 @@ const NAV_ITEMS: NavItem[] = [
 export default function AdminLayout() {
   const { user, logout } = useAuthStore();
   const { theme, toggleTheme } = useTheme();
-  const { t } = useI18n();
+  const { translate } = useI18n();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
@@ -115,7 +115,7 @@ export default function AdminLayout() {
             }
           >
             {item.icon}
-            {t(item.labelKey)}
+            {translate(item.labelKey)}
             <ChevronRight size={14} className="ms-auto opacity-40" />
           </NavLink>
         ))}
@@ -142,7 +142,7 @@ export default function AdminLayout() {
           className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm text-gray-400 hover:bg-white/10 hover:text-white transition-colors"
         >
           <LogOut size={16} />
-          {t('admin.nav.signOut')}
+          {translate('admin.nav.signOut')}
         </button>
       </div>
     </>

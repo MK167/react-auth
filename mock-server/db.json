@@ -1,0 +1,1102 @@
+{
+  "users": [
+    {
+      "id": "user001",
+      "_id": "user001",
+      "username": "john_doe",
+      "email": "customer@test.com",
+      "password": "Password123",
+      "role": "CUSTOMER",
+      "createdAt": "2024-01-15T10:00:00.000Z"
+    },
+    {
+      "id": "user002",
+      "_id": "user002",
+      "username": "admin_user",
+      "email": "admin@test.com",
+      "password": "Password123",
+      "role": "ADMIN",
+      "createdAt": "2024-01-01T00:00:00.000Z"
+    }
+  ],
+  "categories": [
+    {
+      "id": "cat001",
+      "_id": "cat001",
+      "name": "Electronics",
+      "description": "Electronic devices and accessories"
+    },
+    {
+      "id": "cat002",
+      "_id": "cat002",
+      "name": "Fashion",
+      "description": "Clothing, shoes, and accessories"
+    },
+    {
+      "id": "cat003",
+      "_id": "cat003",
+      "name": "Sports",
+      "description": "Sports equipment and activewear"
+    },
+    {
+      "id": "cat004",
+      "_id": "cat004",
+      "name": "Home",
+      "description": "Home decor and appliances"
+    }
+  ],
+  "products": [
+    {
+      "id": "6648a1c4f3e2d1b0a9870001",
+      "_id": "6648a1c4f3e2d1b0a9870001",
+      "name": "Wireless Headphones Pro",
+      "description": "Premium wireless headphones with active noise cancellation, 30-hour battery, and studio-quality sound.",
+      "price": 199.99,
+      "stock": 15,
+      "category": {
+        "_id": "cat001",
+        "name": "Electronics"
+      },
+      "mainImage": {
+        "_id": "img001",
+        "url": "https://picsum.photos/seed/headphones/400/400"
+      },
+      "subImages": [],
+      "slug": "wireless-headphones-pro",
+      "createdAt": "2024-03-01T00:00:00.000Z"
+    },
+    {
+      "id": "6648a1c4f3e2d1b0a9870002",
+      "_id": "6648a1c4f3e2d1b0a9870002",
+      "name": "Smart Watch Elite",
+      "description": "Advanced fitness tracker with heart rate monitoring, GPS, sleep tracking, and 7-day battery life.",
+      "price": 299.99,
+      "stock": 8,
+      "category": {
+        "_id": "cat001",
+        "name": "Electronics"
+      },
+      "mainImage": {
+        "_id": "img002",
+        "url": "https://picsum.photos/seed/smartwatch/400/400"
+      },
+      "subImages": [],
+      "slug": "smart-watch-elite",
+      "createdAt": "2024-03-02T00:00:00.000Z"
+    },
+    {
+      "id": "6648a1c4f3e2d1b0a9870003",
+      "_id": "6648a1c4f3e2d1b0a9870003",
+      "name": "Leather Crossbody Bag",
+      "description": "Genuine full-grain leather crossbody bag. Fits a 13\" laptop. Multiple internal compartments.",
+      "price": 89.99,
+      "stock": 24,
+      "category": {
+        "_id": "cat002",
+        "name": "Fashion"
+      },
+      "mainImage": {
+        "_id": "img003",
+        "url": "https://picsum.photos/seed/leather-bag/400/400"
+      },
+      "subImages": [],
+      "slug": "leather-crossbody-bag",
+      "createdAt": "2024-03-03T00:00:00.000Z"
+    },
+    {
+      "id": "6648a1c4f3e2d1b0a9870004",
+      "_id": "6648a1c4f3e2d1b0a9870004",
+      "name": "Running Shoes Pro",
+      "description": "Lightweight carbon-plate running shoes for road and track. Responsive cushioning system.",
+      "price": 129.99,
+      "stock": 32,
+      "category": {
+        "_id": "cat003",
+        "name": "Sports"
+      },
+      "mainImage": {
+        "_id": "img004",
+        "url": "https://picsum.photos/seed/running-shoes/400/400"
+      },
+      "subImages": [],
+      "slug": "running-shoes-pro",
+      "createdAt": "2024-03-04T00:00:00.000Z"
+    },
+    {
+      "id": "6648a1c4f3e2d1b0a9870005",
+      "_id": "6648a1c4f3e2d1b0a9870005",
+      "name": "Yoga Mat Premium",
+      "description": "Extra-thick non-slip yoga mat with alignment lines. Eco-friendly natural rubber. 6mm thickness.",
+      "price": 49.99,
+      "stock": 45,
+      "category": {
+        "_id": "cat003",
+        "name": "Sports"
+      },
+      "mainImage": {
+        "_id": "img005",
+        "url": "https://picsum.photos/seed/yoga-mat/400/400"
+      },
+      "subImages": [],
+      "slug": "yoga-mat-premium",
+      "createdAt": "2024-03-05T00:00:00.000Z"
+    },
+    {
+      "id": "6648a1c4f3e2d1b0a9870006",
+      "_id": "6648a1c4f3e2d1b0a9870006",
+      "name": "Coffee Maker Deluxe",
+      "description": "12-cup programmable coffee maker with built-in grinder, brew-strength control, and thermal carafe.",
+      "price": 149.99,
+      "stock": 12,
+      "category": {
+        "_id": "cat004",
+        "name": "Home"
+      },
+      "mainImage": {
+        "_id": "img006",
+        "url": "https://picsum.photos/seed/coffee-maker/400/400"
+      },
+      "subImages": [],
+      "slug": "coffee-maker-deluxe",
+      "createdAt": "2024-03-06T00:00:00.000Z"
+    },
+    {
+      "id": "6648a1c4f3e2d1b0a9870007",
+      "_id": "6648a1c4f3e2d1b0a9870007",
+      "name": "Minimalist Desk Lamp",
+      "description": "LED desk lamp with 5 color temperatures, 10 brightness levels, USB-C charging port, and memory function.",
+      "price": 69.99,
+      "stock": 19,
+      "category": {
+        "_id": "cat004",
+        "name": "Home"
+      },
+      "mainImage": {
+        "_id": "img007",
+        "url": "https://picsum.photos/seed/desk-lamp/400/400"
+      },
+      "subImages": [],
+      "slug": "minimalist-desk-lamp",
+      "createdAt": "2024-03-07T00:00:00.000Z"
+    },
+    {
+      "id": "6648a1c4f3e2d1b0a9870008",
+      "_id": "6648a1c4f3e2d1b0a9870008",
+      "name": "Wireless Charging Pad",
+      "description": "15W fast wireless charging pad compatible with Qi-enabled devices. LED indicator ring.",
+      "price": 39.99,
+      "stock": 50,
+      "category": {
+        "_id": "cat001",
+        "name": "Electronics"
+      },
+      "mainImage": {
+        "_id": "img008",
+        "url": "https://picsum.photos/seed/charger/400/400"
+      },
+      "subImages": [],
+      "slug": "wireless-charging-pad",
+      "createdAt": "2024-03-08T00:00:00.000Z"
+    },
+    {
+      "id": "6648a1c4f3e2d1b0a9870009",
+      "_id": "6648a1c4f3e2d1b0a9870009",
+      "name": "Canvas Sneakers",
+      "description": "Classic low-top canvas sneakers with vulcanized rubber sole. Timeless street style.",
+      "price": 79.99,
+      "stock": 28,
+      "category": {
+        "_id": "cat002",
+        "name": "Fashion"
+      },
+      "mainImage": {
+        "_id": "img009",
+        "url": "https://picsum.photos/seed/sneakers/400/400"
+      },
+      "subImages": [],
+      "slug": "canvas-sneakers",
+      "createdAt": "2024-03-09T00:00:00.000Z"
+    },
+    {
+      "id": "6648a1c4f3e2d1b0a987000a",
+      "_id": "6648a1c4f3e2d1b0a987000a",
+      "name": "Stainless Steel Water Bottle",
+      "description": "32oz double-wall insulated bottle. Keeps drinks cold 24h / hot 12h. BPA-free, leak-proof lid.",
+      "price": 34.99,
+      "stock": 60,
+      "category": {
+        "_id": "cat003",
+        "name": "Sports"
+      },
+      "mainImage": {
+        "_id": "img010",
+        "url": "https://picsum.photos/seed/water-bottle/400/400"
+      },
+      "subImages": [],
+      "slug": "stainless-steel-water-bottle",
+      "createdAt": "2024-03-10T00:00:00.000Z"
+    },
+    {
+      "id": "6648a1c4f3e2d1b0a987000b",
+      "_id": "6648a1c4f3e2d1b0a987000b",
+      "name": "Bluetooth Speaker",
+      "description": "Portable waterproof Bluetooth speaker with 360° sound, 20h playtime, and built-in speakerphone.",
+      "price": 89.99,
+      "stock": 22,
+      "category": {
+        "_id": "cat001",
+        "name": "Electronics"
+      },
+      "mainImage": {
+        "_id": "img011",
+        "url": "https://picsum.photos/seed/speaker/400/400"
+      },
+      "subImages": [],
+      "slug": "bluetooth-speaker",
+      "createdAt": "2024-03-11T00:00:00.000Z"
+    },
+    {
+      "id": "6648a1c4f3e2d1b0a987000c",
+      "_id": "6648a1c4f3e2d1b0a987000c",
+      "name": "Silk Scarf Collection",
+      "description": "100% pure silk scarf with hand-rolled edges. Versatile wear as necktie, headband, or bag charm.",
+      "price": 59.99,
+      "stock": 15,
+      "category": {
+        "_id": "cat002",
+        "name": "Fashion"
+      },
+      "mainImage": {
+        "_id": "img012",
+        "url": "https://picsum.photos/seed/scarf/400/400"
+      },
+      "subImages": [],
+      "slug": "silk-scarf-collection",
+      "createdAt": "2024-03-12T00:00:00.000Z"
+    }
+  ],
+  "orders": [
+    {
+      "id": "order001",
+      "_id": "order001",
+      "userId": "user001",
+      "status": "DELIVERED",
+      "items": [
+        {
+          "product": {
+            "_id": "6648a1c4f3e2d1b0a9870001",
+            "name": "Wireless Headphones Pro",
+            "price": 199.99,
+            "mainImage": {
+              "url": "https://picsum.photos/seed/headphones/400/400"
+            }
+          },
+          "quantity": 1
+        },
+        {
+          "product": {
+            "_id": "6648a1c4f3e2d1b0a9870008",
+            "name": "Wireless Charging Pad",
+            "price": 39.99,
+            "mainImage": {
+              "url": "https://picsum.photos/seed/charger/400/400"
+            }
+          },
+          "quantity": 2
+        }
+      ],
+      "totalAmount": 279.97,
+      "shippingAddress": {
+        "street": "123 Main St",
+        "city": "New York",
+        "zip": "10001"
+      },
+      "createdAt": "2024-02-01T10:00:00.000Z"
+    },
+    {
+      "id": "order002",
+      "_id": "order002",
+      "userId": "user001",
+      "status": "PROCESSING",
+      "items": [
+        {
+          "product": {
+            "_id": "6648a1c4f3e2d1b0a9870004",
+            "name": "Running Shoes Pro",
+            "price": 129.99,
+            "mainImage": {
+              "url": "https://picsum.photos/seed/running-shoes/400/400"
+            }
+          },
+          "quantity": 1
+        }
+      ],
+      "totalAmount": 129.99,
+      "shippingAddress": {
+        "street": "123 Main St",
+        "city": "New York",
+        "zip": "10001"
+      },
+      "createdAt": "2024-03-10T14:00:00.000Z"
+    }
+  ],
+  "cartItems": [],
+  "wishlistItems": [],
+  "content": {
+    "default-en": {
+      "nav": {
+        "home": "Home",
+        "products": "Products",
+        "orders": "Orders",
+        "profile": "Profile",
+        "cart": "Cart",
+        "signOut": "Sign out",
+        "signIn": "Sign in",
+        "language": "Language",
+        "wishlist": "Wishlist"
+      },
+      "home": {
+        "hero": {
+          "badge": "New season arrivals",
+          "title": "Discover products you'll love",
+          "subtitle": "Browse our curated collection of premium products.",
+          "shopNow": "Shop now",
+          "myOrders": "My orders"
+        },
+        "featured": {
+          "title": "Featured products",
+          "viewAll": "View all"
+        },
+        "empty": "No products available right now.",
+        "features": {
+          "shipping": "Free shipping",
+          "shippingDesc": "On all orders over $50",
+          "returns": "Easy returns",
+          "returnsDesc": "30-day hassle-free returns",
+          "secure": "Secure checkout",
+          "secureDesc": "Your data is always safe"
+        }
+      },
+      "products": {
+        "title": "All Products",
+        "itemCount": "{{count}} products",
+        "search": "Search products…",
+        "filters": "Filters",
+        "allCategories": "All categories",
+        "sortBy": "Sort by",
+        "noResults": "No products found",
+        "noResultsHint": "Try adjusting your search or filters.",
+        "clearFilters": "Clear filters",
+        "sort": {
+          "newestFirst": "Newest first",
+          "oldestFirst": "Oldest first",
+          "priceLow": "Price: Low to High",
+          "priceHigh": "Price: High to Low",
+          "nameAZ": "Name: A–Z",
+          "nameZA": "Name: Z–A"
+        }
+      },
+      "product": {
+        "add": "Add",
+        "addToCart": "Add to cart",
+        "addedToCart": "Added to cart!",
+        "buyNow": "Buy now",
+        "outOfStock": "Out of stock",
+        "inStock": "In stock",
+        "available": "available",
+        "qty": "Qty:",
+        "reviews": "reviews",
+        "backToProducts": "← Back to products",
+        "wishlist": "Add to wishlist",
+        "removeWishlist": "Remove from wishlist",
+        "noImage": "No image available"
+      },
+      "cart": {
+        "title": "Cart",
+        "emptyTitle": "Your cart is empty",
+        "emptySubtitle": "Add some products to your cart to get started.",
+        "browseProducts": "Browse products",
+        "clearCart": "Clear cart",
+        "checkout": "Proceed to checkout",
+        "continueShopping": "Continue shopping",
+        "summary": "Order summary",
+        "subtotal": "Subtotal",
+        "shipping": "Shipping",
+        "free": "Free",
+        "tax": "Tax (est.)",
+        "total": "Total",
+        "items": "items",
+        "noImage": "No img"
+      },
+      "checkout": {
+        "title": "Checkout",
+        "shippingAddress": "Shipping address",
+        "payment": "Payment",
+        "secure": "Secure",
+        "firstName": "First name",
+        "lastName": "Last name",
+        "streetAddress": "Street address",
+        "city": "City",
+        "zip": "ZIP / Postal",
+        "cardNumber": "Card number",
+        "expiry": "Expiry (MM/YY)",
+        "cvv": "CVV",
+        "pay": "Pay",
+        "processing": "Processing payment…",
+        "emptyCart": "Your cart is empty.",
+        "browseProducts": "Browse products",
+        "orderPlaced": "Order placed!",
+        "thankYou": "Thank you for your purchase.",
+        "viewOrders": "View orders",
+        "continueShopping": "Continue shopping",
+        "order": "Order",
+        "shipping": "Shipping",
+        "free": "Free",
+        "tax": "Tax (10%)",
+        "total": "Total"
+      },
+      "orders": {
+        "title": "My Orders",
+        "empty": "You haven't placed any orders yet.",
+        "startShopping": "Start shopping",
+        "details": "Details",
+        "item": "item",
+        "items": "items",
+        "status": {
+          "pending": "Pending",
+          "processing": "Processing",
+          "shipped": "Shipped",
+          "delivered": "Delivered",
+          "cancelled": "Cancelled"
+        },
+        "steps": {
+          "ordered": "Ordered",
+          "processing": "Processing",
+          "shipped": "Shipped",
+          "delivered": "Delivered"
+        }
+      },
+      "profile": {
+        "title": "My Profile",
+        "accountDetails": "Account details",
+        "username": "Username",
+        "email": "Email",
+        "role": "Role",
+        "roleCustomer": "Customer",
+        "roleAdmin": "Administrator",
+        "roleManager": "Manager",
+        "quickActions": "Quick actions",
+        "myOrders": "My orders",
+        "cart": "Cart",
+        "adminPanel": "Admin panel",
+        "signOut": "Sign out"
+      },
+      "common": {
+        "loading": "Loading…",
+        "error": "An error occurred",
+        "noImage": "No image",
+        "add": "Add",
+        "remove": "Remove",
+        "cancel": "Cancel",
+        "save": "Save",
+        "back": "Back",
+        "retry": "Try again",
+        "goHome": "Go Home"
+      },
+      "auth": {
+        "login": {
+          "title": "Welcome back!",
+          "email": "Email",
+          "password": "Password",
+          "forgotPassword": "Forgot password?",
+          "signingIn": "Signing in…",
+          "continue": "Continue",
+          "noAccount": "Don't have an account?",
+          "signUp": "Sign up",
+          "backendError": "Backend Error:"
+        },
+        "register": {
+          "title": "Create an account",
+          "username": "Username",
+          "email": "Email",
+          "password": "Password",
+          "confirmPassword": "Confirm password",
+          "creating": "Creating account…",
+          "create": "Create account",
+          "haveAccount": "Already have an account?",
+          "signIn": "Sign in"
+        }
+      },
+      "errors": {
+        "orderNotFound": {
+          "title": "Order Not Found",
+          "description": "The order you are looking for does not exist."
+        },
+        "productNotFound": {
+          "title": "Product Not Found",
+          "description": "This product is no longer available."
+        },
+        "unauthorized": {
+          "title": "Unauthorized",
+          "description": "You need to sign in to access this page."
+        },
+        "forbidden": {
+          "title": "Access Denied",
+          "description": "You do not have permission to view this page."
+        },
+        "sessionExpired": {
+          "title": "Session Expired",
+          "description": "Your session has expired. Please sign in again."
+        },
+        "serverError": {
+          "title": "Server Error",
+          "description": "Something went wrong on our end."
+        },
+        "networkError": {
+          "title": "Connection Error",
+          "description": "We couldn't reach our servers."
+        },
+        "featureDisabled": {
+          "title": "Feature Not Available",
+          "description": "This feature is not currently enabled."
+        },
+        "validationError": {
+          "title": "Validation Error",
+          "description": "Some information you entered is invalid."
+        },
+        "resourceNotFound": {
+          "title": "Not Found",
+          "description": "The resource you are looking for does not exist."
+        },
+        "unknownError": {
+          "title": "Something Went Wrong",
+          "description": "An unexpected error occurred."
+        }
+      },
+      "admin": {
+        "nav": {
+          "dashboard": "Dashboard",
+          "products": "Products",
+          "categories": "Categories",
+          "orders": "Orders",
+          "signOut": "Sign out"
+        },
+        "products": {
+          "title": "Products",
+          "newProduct": "New Product",
+          "totalProducts": "{{count}} total products",
+          "search": "Search products…",
+          "allCategories": "All categories",
+          "sort": {
+            "date": "Sort: Date",
+            "name": "Sort: Name",
+            "price": "Sort: Price",
+            "descending": "Descending",
+            "ascending": "Ascending"
+          },
+          "table": {
+            "image": "Image",
+            "name": "Name",
+            "category": "Category",
+            "price": "Price",
+            "stock": "Stock",
+            "actions": "Actions"
+          },
+          "empty": "No products found.",
+          "clearSearch": "Clear search",
+          "retry": "Retry",
+          "showing": "Showing {{from}}–{{to}} of {{total}}",
+          "outOfStock": "Out of stock",
+          "lowStock": "Low ({{count}})"
+        },
+        "categories": {
+          "title": "Categories",
+          "newCategory": "New Category",
+          "empty": "No categories found."
+        },
+        "orders": {
+          "title": "Admin Orders",
+          "empty": "No orders found."
+        },
+        "deleteModal": {
+          "title": "Delete product?",
+          "message": "This action cannot be undone.",
+          "confirm": "Delete",
+          "cancel": "Cancel"
+        }
+      },
+      "wishlist": {
+        "title": "My Wishlist",
+        "emptySubtitle": "Save products you love and come back to them later.",
+        "browseProducts": "Browse products",
+        "unavailable": "Product no longer available"
+      }
+    },
+    "default-ar": {
+      "nav": {
+        "home": "الرئيسية",
+        "products": "المنتجات",
+        "orders": "الطلبات",
+        "profile": "الملف الشخصي",
+        "cart": "السلة",
+        "signOut": "تسجيل الخروج",
+        "signIn": "تسجيل الدخول",
+        "language": "اللغة",
+        "wishlist": "المفضلة"
+      },
+      "home": {
+        "hero": {
+          "badge": "وصلت تشكيلة الموسم الجديد",
+          "title": "اكتشف منتجات ستحبها",
+          "subtitle": "تصفح مجموعتنا المختارة من المنتجات الفاخرة.",
+          "shopNow": "تسوق الآن",
+          "myOrders": "طلباتي"
+        },
+        "featured": {
+          "title": "المنتجات المميزة",
+          "viewAll": "عرض الكل"
+        },
+        "empty": "لا توجد منتجات متاحة حالياً.",
+        "features": {
+          "shipping": "شحن مجاني",
+          "shippingDesc": "على جميع الطلبات فوق 50$",
+          "returns": "إرجاع سهل",
+          "returnsDesc": "إرجاع مجاني خلال 30 يوماً",
+          "secure": "دفع آمن",
+          "secureDesc": "بياناتك محمية دائماً"
+        }
+      },
+      "products": {
+        "title": "جميع المنتجات",
+        "itemCount": "{{count}} منتج",
+        "search": "البحث عن منتجات…",
+        "filters": "الفلاتر",
+        "allCategories": "جميع الفئات",
+        "sortBy": "ترتيب حسب",
+        "noResults": "لا توجد منتجات",
+        "noResultsHint": "حاول تعديل البحث أو الفلاتر.",
+        "clearFilters": "مسح الفلاتر",
+        "sort": {
+          "newestFirst": "الأحدث أولاً",
+          "oldestFirst": "الأقدم أولاً",
+          "priceLow": "السعر: من الأقل إلى الأعلى",
+          "priceHigh": "السعر: من الأعلى إلى الأقل",
+          "nameAZ": "الاسم: أ–ي",
+          "nameZA": "الاسم: ي–أ"
+        }
+      },
+      "product": {
+        "add": "أضف",
+        "addToCart": "أضف إلى السلة",
+        "addedToCart": "تمت الإضافة!",
+        "buyNow": "اشتري الآن",
+        "outOfStock": "نفد المخزون",
+        "inStock": "متوفر",
+        "available": "متاح",
+        "qty": "الكمية:",
+        "reviews": "تقييمات",
+        "backToProducts": "→ العودة إلى المنتجات",
+        "wishlist": "أضف إلى المفضلة",
+        "removeWishlist": "إزالة من المفضلة",
+        "noImage": "لا توجد صورة"
+      },
+      "cart": {
+        "title": "السلة",
+        "emptyTitle": "سلتك فارغة",
+        "emptySubtitle": "أضف بعض المنتجات للبدء.",
+        "browseProducts": "تصفح المنتجات",
+        "clearCart": "إفراغ السلة",
+        "checkout": "المتابعة للدفع",
+        "continueShopping": "مواصلة التسوق",
+        "summary": "ملخص الطلب",
+        "subtotal": "الإجمالي الفرعي",
+        "shipping": "الشحن",
+        "free": "مجاني",
+        "tax": "الضريبة (تقريبي)",
+        "total": "الإجمالي",
+        "items": "عناصر",
+        "noImage": "لا صورة"
+      },
+      "checkout": {
+        "title": "إتمام الطلب",
+        "shippingAddress": "عنوان الشحن",
+        "payment": "الدفع",
+        "secure": "آمن",
+        "firstName": "الاسم الأول",
+        "lastName": "اسم العائلة",
+        "streetAddress": "عنوان الشارع",
+        "city": "المدينة",
+        "zip": "الرمز البريدي",
+        "cardNumber": "رقم البطاقة",
+        "expiry": "تاريخ الانتهاء (MM/YY)",
+        "cvv": "رمز الأمان",
+        "pay": "ادفع",
+        "processing": "جارٍ معالجة الدفع…",
+        "emptyCart": "سلتك فارغة.",
+        "browseProducts": "تصفح المنتجات",
+        "orderPlaced": "تم تقديم الطلب!",
+        "thankYou": "شكراً لشرائك.",
+        "viewOrders": "عرض الطلبات",
+        "continueShopping": "مواصلة التسوق",
+        "order": "الطلب",
+        "shipping": "الشحن",
+        "free": "مجاني",
+        "tax": "الضريبة (10%)",
+        "total": "الإجمالي"
+      },
+      "orders": {
+        "title": "طلباتي",
+        "empty": "لم تقدم أي طلبات بعد.",
+        "startShopping": "ابدأ التسوق",
+        "details": "التفاصيل",
+        "item": "عنصر",
+        "items": "عناصر",
+        "status": {
+          "pending": "قيد الانتظار",
+          "processing": "قيد المعالجة",
+          "shipped": "تم الشحن",
+          "delivered": "تم التسليم",
+          "cancelled": "ملغى"
+        },
+        "steps": {
+          "ordered": "تم الطلب",
+          "processing": "المعالجة",
+          "shipped": "الشحن",
+          "delivered": "التسليم"
+        }
+      },
+      "profile": {
+        "title": "ملفي الشخصي",
+        "accountDetails": "تفاصيل الحساب",
+        "username": "اسم المستخدم",
+        "email": "البريد الإلكتروني",
+        "role": "الدور",
+        "roleCustomer": "عميل",
+        "roleAdmin": "مدير",
+        "roleManager": "مشرف",
+        "quickActions": "إجراءات سريعة",
+        "myOrders": "طلباتي",
+        "cart": "السلة",
+        "adminPanel": "لوحة الإدارة",
+        "signOut": "تسجيل الخروج"
+      },
+      "common": {
+        "loading": "جارٍ التحميل…",
+        "error": "حدث خطأ",
+        "noImage": "لا توجد صورة",
+        "add": "أضف",
+        "remove": "إزالة",
+        "cancel": "إلغاء",
+        "save": "حفظ",
+        "back": "رجوع",
+        "retry": "حاول مجدداً",
+        "goHome": "الرئيسية"
+      },
+      "auth": {
+        "login": {
+          "title": "مرحباً بعودتك!",
+          "email": "البريد الإلكتروني",
+          "password": "كلمة المرور",
+          "forgotPassword": "نسيت كلمة المرور؟",
+          "signingIn": "جارٍ تسجيل الدخول…",
+          "continue": "متابعة",
+          "noAccount": "ليس لديك حساب؟",
+          "signUp": "إنشاء حساب",
+          "backendError": "خطأ من الخادم:"
+        },
+        "register": {
+          "title": "إنشاء حساب جديد",
+          "username": "اسم المستخدم",
+          "email": "البريد الإلكتروني",
+          "password": "كلمة المرور",
+          "confirmPassword": "تأكيد كلمة المرور",
+          "creating": "جارٍ الإنشاء…",
+          "create": "إنشاء حساب",
+          "haveAccount": "لديك حساب بالفعل؟",
+          "signIn": "تسجيل الدخول"
+        }
+      },
+      "errors": {
+        "orderNotFound": {
+          "title": "الطلب غير موجود",
+          "description": "الطلب الذي تبحث عنه غير موجود."
+        },
+        "productNotFound": {
+          "title": "المنتج غير موجود",
+          "description": "هذا المنتج لم يعد متاحاً."
+        },
+        "unauthorized": {
+          "title": "غير مصرح",
+          "description": "يجب تسجيل الدخول للوصول إلى هذه الصفحة."
+        },
+        "forbidden": {
+          "title": "الوصول مرفوض",
+          "description": "ليس لديك صلاحية لعرض هذه الصفحة."
+        },
+        "sessionExpired": {
+          "title": "انتهت الجلسة",
+          "description": "انتهت جلستك. يرجى تسجيل الدخول مجدداً."
+        },
+        "serverError": {
+          "title": "خطأ في الخادم",
+          "description": "حدث خطأ من جانبنا."
+        },
+        "networkError": {
+          "title": "خطأ في الاتصال",
+          "description": "تعذر الوصول إلى خوادمنا."
+        },
+        "featureDisabled": {
+          "title": "الميزة غير متاحة",
+          "description": "هذه الميزة غير مفعّلة."
+        },
+        "validationError": {
+          "title": "خطأ في التحقق",
+          "description": "بعض المعلومات غير صحيحة."
+        },
+        "resourceNotFound": {
+          "title": "غير موجود",
+          "description": "المورد غير موجود."
+        },
+        "unknownError": {
+          "title": "حدث خطأ ما",
+          "description": "حدث خطأ غير متوقع."
+        }
+      },
+      "admin": {
+        "nav": {
+          "dashboard": "لوحة التحكم",
+          "products": "المنتجات",
+          "categories": "الفئات",
+          "orders": "الطلبات",
+          "signOut": "تسجيل الخروج"
+        },
+        "products": {
+          "title": "المنتجات",
+          "newProduct": "منتج جديد",
+          "totalProducts": "{{count}} منتج",
+          "search": "البحث عن منتجات…",
+          "allCategories": "جميع الفئات",
+          "sort": {
+            "date": "ترتيب: التاريخ",
+            "name": "ترتيب: الاسم",
+            "price": "ترتيب: السعر",
+            "descending": "تنازلي",
+            "ascending": "تصاعدي"
+          },
+          "table": {
+            "image": "الصورة",
+            "name": "الاسم",
+            "category": "الفئة",
+            "price": "السعر",
+            "stock": "المخزون",
+            "actions": "الإجراءات"
+          },
+          "empty": "لا توجد منتجات.",
+          "clearSearch": "مسح البحث",
+          "retry": "إعادة المحاولة",
+          "showing": "عرض {{from}}–{{to}} من {{total}}",
+          "outOfStock": "نفد المخزون",
+          "lowStock": "منخفض ({{count}})"
+        },
+        "categories": {
+          "title": "الفئات",
+          "newCategory": "فئة جديدة",
+          "empty": "لا توجد فئات."
+        },
+        "orders": {
+          "title": "طلبات الإدارة",
+          "empty": "لا توجد طلبات."
+        },
+        "deleteModal": {
+          "title": "حذف المنتج؟",
+          "message": "لا يمكن التراجع عن هذا الإجراء.",
+          "confirm": "حذف",
+          "cancel": "إلغاء"
+        }
+      },
+      "wishlist": {
+        "title": "قائمة المفضلة",
+        "emptySubtitle": "احفظ المنتجات التي تحبها وارجع إليها لاحقاً.",
+        "browseProducts": "تصفح المنتجات",
+        "unavailable": "المنتج لم يعد متاحاً"
+      }
+    },
+    "default-error": {
+      "ORDER_NOT_FOUND": {
+        "code": "ORDER_NOT_FOUND",
+        "displayMode": "PAGE",
+        "iconName": "PackageX",
+        "iconBgClass": "bg-orange-100 dark:bg-orange-900/30",
+        "iconColorClass": "text-orange-500 dark:text-orange-400",
+        "titleKey": "errors.orderNotFound.title",
+        "descriptionKey": "errors.orderNotFound.description",
+        "primaryAction": {
+          "label": "View All Orders",
+          "redirectTo": "/orders",
+          "variant": "primary"
+        },
+        "secondaryAction": {
+          "label": "Go Home",
+          "redirectTo": "/",
+          "variant": "secondary"
+        }
+      },
+      "PRODUCT_NOT_FOUND": {
+        "code": "PRODUCT_NOT_FOUND",
+        "displayMode": "PAGE",
+        "iconName": "ShoppingBag",
+        "iconBgClass": "bg-purple-100 dark:bg-purple-900/30",
+        "iconColorClass": "text-purple-500 dark:text-purple-400",
+        "titleKey": "errors.productNotFound.title",
+        "descriptionKey": "errors.productNotFound.description",
+        "primaryAction": {
+          "label": "Browse Products",
+          "redirectTo": "/products",
+          "variant": "primary"
+        },
+        "secondaryAction": {
+          "label": "Go Home",
+          "redirectTo": "/",
+          "variant": "secondary"
+        }
+      },
+      "UNAUTHORIZED": {
+        "code": "UNAUTHORIZED",
+        "displayMode": "PAGE",
+        "iconName": "ShieldX",
+        "iconBgClass": "bg-red-100 dark:bg-red-900/30",
+        "iconColorClass": "text-red-500 dark:text-red-400",
+        "titleKey": "errors.unauthorized.title",
+        "descriptionKey": "errors.unauthorized.description",
+        "primaryAction": {
+          "label": "Go Home",
+          "redirectTo": "/",
+          "variant": "primary"
+        },
+        "secondaryAction": {
+          "label": "Sign In",
+          "redirectTo": "/login",
+          "variant": "secondary"
+        }
+      },
+      "FORBIDDEN": {
+        "code": "FORBIDDEN",
+        "displayMode": "PAGE",
+        "iconName": "Lock",
+        "iconBgClass": "bg-red-100 dark:bg-red-900/30",
+        "iconColorClass": "text-red-500 dark:text-red-400",
+        "titleKey": "errors.forbidden.title",
+        "descriptionKey": "errors.forbidden.description",
+        "primaryAction": {
+          "label": "Go Home",
+          "redirectTo": "/",
+          "variant": "primary"
+        }
+      },
+      "SESSION_EXPIRED": {
+        "code": "SESSION_EXPIRED",
+        "displayMode": "MODAL",
+        "iconName": "Clock",
+        "iconBgClass": "bg-amber-100 dark:bg-amber-900/30",
+        "iconColorClass": "text-amber-500 dark:text-amber-400",
+        "titleKey": "errors.sessionExpired.title",
+        "descriptionKey": "errors.sessionExpired.description",
+        "primaryAction": {
+          "label": "Sign In Again",
+          "redirectTo": "/login",
+          "variant": "primary"
+        }
+      },
+      "SERVER_ERROR": {
+        "code": "SERVER_ERROR",
+        "displayMode": "PAGE",
+        "iconName": "ServerCrash",
+        "iconBgClass": "bg-red-100 dark:bg-red-900/30",
+        "iconColorClass": "text-red-500 dark:text-red-400",
+        "titleKey": "errors.serverError.title",
+        "descriptionKey": "errors.serverError.description",
+        "primaryAction": {
+          "label": "Try Again",
+          "variant": "primary"
+        },
+        "secondaryAction": {
+          "label": "Go Home",
+          "redirectTo": "/",
+          "variant": "secondary"
+        }
+      },
+      "NETWORK_ERROR": {
+        "code": "NETWORK_ERROR",
+        "displayMode": "PAGE",
+        "iconName": "WifiOff",
+        "iconBgClass": "bg-amber-100 dark:bg-amber-900/30",
+        "iconColorClass": "text-amber-500 dark:text-amber-400",
+        "titleKey": "errors.networkError.title",
+        "descriptionKey": "errors.networkError.description",
+        "primaryAction": {
+          "label": "Try Again",
+          "variant": "primary"
+        },
+        "secondaryAction": {
+          "label": "Go Home",
+          "redirectTo": "/",
+          "variant": "secondary"
+        }
+      },
+      "FEATURE_DISABLED": {
+        "code": "FEATURE_DISABLED",
+        "displayMode": "PAGE",
+        "iconName": "Zap",
+        "iconBgClass": "bg-gray-100 dark:bg-gray-800",
+        "iconColorClass": "text-gray-500 dark:text-gray-400",
+        "titleKey": "errors.featureDisabled.title",
+        "descriptionKey": "errors.featureDisabled.description",
+        "primaryAction": {
+          "label": "Go Back",
+          "variant": "primary"
+        },
+        "secondaryAction": {
+          "label": "Go Home",
+          "redirectTo": "/",
+          "variant": "secondary"
+        }
+      },
+      "VALIDATION_ERROR": {
+        "code": "VALIDATION_ERROR",
+        "displayMode": "TOAST",
+        "iconName": "AlertCircle",
+        "iconBgClass": "bg-yellow-100 dark:bg-yellow-900/30",
+        "iconColorClass": "text-yellow-600 dark:text-yellow-400",
+        "titleKey": "errors.validationError.title",
+        "descriptionKey": "errors.validationError.description"
+      },
+      "RESOURCE_NOT_FOUND": {
+        "code": "RESOURCE_NOT_FOUND",
+        "displayMode": "PAGE",
+        "iconName": "SearchX",
+        "iconBgClass": "bg-gray-100 dark:bg-gray-800",
+        "iconColorClass": "text-gray-500 dark:text-gray-400",
+        "titleKey": "errors.resourceNotFound.title",
+        "descriptionKey": "errors.resourceNotFound.description",
+        "primaryAction": {
+          "label": "Go Back",
+          "variant": "primary"
+        },
+        "secondaryAction": {
+          "label": "Go Home",
+          "redirectTo": "/",
+          "variant": "secondary"
+        }
+      },
+      "UNKNOWN_ERROR": {
+        "code": "UNKNOWN_ERROR",
+        "displayMode": "TOAST",
+        "iconName": "AlertTriangle",
+        "iconBgClass": "bg-gray-100 dark:bg-gray-800",
+        "iconColorClass": "text-gray-500 dark:text-gray-400",
+        "titleKey": "errors.unknownError.title",
+        "descriptionKey": "errors.unknownError.description"
+      }
+    }
+  }
+}

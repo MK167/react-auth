@@ -82,6 +82,7 @@ const HomePage         = lazy(() => import('@/pages/user/HomePage'));
 const ProductsPage     = lazy(() => import('@/pages/user/ProductsPage'));
 const ProductDetailPage = lazy(() => import('@/pages/user/ProductDetailPage'));
 const CartPage         = lazy(() => import('@/pages/user/CartPage'));
+const WishlistPage     = lazy(() => import('@/pages/user/WishlistPage'));
 const CheckoutPage     = lazy(() => import('@/pages/user/CheckoutPage'));
 const OrdersPage       = lazy(() => import('@/pages/user/OrdersPage'));
 const ProfilePage      = lazy(() => import('@/pages/user/ProfilePage'));
@@ -127,7 +128,8 @@ export default function AppRouter() {
         <Route path="/"                element={<Page component={HomePage} />} />
         <Route path="/products"        element={<Page component={ProductsPage} />} />
         <Route path="/products/:slugId" element={<Page component={ProductDetailPage} />} />
-        <Route path="/cart"            element={<Page component={CartPage} />} />
+        <Route path="/cart"             element={<Page component={CartPage} />} />
+        <Route path="/wishlist"         element={<Page component={WishlistPage} />} />
 
         {/* Protected storefront — authentication required */}
         <Route element={<ProtectedRoute />}>

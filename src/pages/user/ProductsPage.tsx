@@ -19,19 +19,20 @@ import { ProductCardSkeleton } from '@/components/ui/Skeleton';
 import { useDebounce } from '@/hooks/useDebounce';
 import { toProductSlugId } from '@/utils/slug';
 import { prefetchProductDetail } from '@/utils/prefetch';
+import { useI18n } from '@/i18n/i18n.context';
 import type { Product, ProductCategory, PaginatedData } from '@/types/product.types';
 
 const PAGE_SIZE = 12;
 
-type SortOption = { label: string; sortBy: 'name' | 'price' | 'createdAt'; sortType: 'asc' | 'desc' };
+type SortOption = { labelKey: string; sortBy: 'name' | 'price' | 'createdAt'; sortType: 'asc' | 'desc' };
 
 const SORT_OPTIONS: SortOption[] = [
-  { label: 'Newest first', sortBy: 'createdAt', sortType: 'desc' },
-  { label: 'Oldest first', sortBy: 'createdAt', sortType: 'asc' },
-  { label: 'Price: Low to High', sortBy: 'price', sortType: 'asc' },
-  { label: 'Price: High to Low', sortBy: 'price', sortType: 'desc' },
-  { label: 'Name: A–Z', sortBy: 'name', sortType: 'asc' },
-  { label: 'Name: Z–A', sortBy: 'name', sortType: 'desc' },
+  { labelKey: 'products.sort.newestFirst', sortBy: 'createdAt', sortType: 'desc' },
+  { labelKey: 'products.sort.oldestFirst', sortBy: 'createdAt', sortType: 'asc' },
+  { labelKey: 'products.sort.priceLow',    sortBy: 'price',     sortType: 'asc' },
+  { labelKey: 'products.sort.priceHigh',   sortBy: 'price',     sortType: 'desc' },
+  { labelKey: 'products.sort.nameAZ',      sortBy: 'name',      sortType: 'asc' },
+  { labelKey: 'products.sort.nameZA',      sortBy: 'name',      sortType: 'desc' },
 ];
 
 // Product card — reads wishlist store directly (self-contained)
@@ -46,6 +47,7 @@ function ProductCard({
   onNavigate: (slugId: string) => void;
 }) {
   const { hasItem, toggleItem } = useWishlistStore();
+  const { translate } = useI18n();
   const isWishlisted = hasItem(product._id);
   const slugId = toProductSlugId(product.name, product._id);
 
@@ -70,13 +72,13 @@ function ProductCard({
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center text-gray-300 dark:text-gray-600 text-sm">
-            No image
+            {translate('product.noImage')}
           </div>
         )}
         {product.stock === 0 && (
           <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
             <span className="bg-white text-gray-800 text-xs font-semibold px-3 py-1 rounded-full">
-              Out of stock
+              {translate('product.outOfStock')}
             </span>
           </div>
         )}
@@ -134,7 +136,7 @@ function ProductCard({
               className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-200 dark:disabled:bg-gray-700 disabled:cursor-not-allowed text-white disabled:text-gray-400 text-xs font-medium rounded-lg transition-colors"
             >
               <ShoppingCart size={13} />
-              Add
+              {translate('product.add')}
             </button>
           </div>
         </div>
@@ -148,6 +150,7 @@ function ProductCard({
  */
 export default function ProductsPage() {
   const navigate = useNavigate();
+  const { translate } = useI18n();
   const addItem = useCartStore((s) => s.addItem);
   // Wishlist state is read inside ProductCard directly (self-contained)
 
@@ -205,10 +208,10 @@ export default function ProductsPage() {
       {/* Heading */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">All Products</h1>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{translate('products.title')}</h1>
           {!loading && (
             <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
-              {totalItems} products
+              {totalItems} {translate('products.title').toLowerCase()}
             </p>
           )}
         </div>
@@ -220,7 +223,7 @@ export default function ProductsPage() {
           className="flex items-center gap-2 px-3 py-2 text-sm font-medium border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
         >
           <SlidersHorizontal size={15} />
-          Filters
+          {translate('products.filters')}
         </button>
       </div>
 
@@ -231,7 +234,7 @@ export default function ProductsPage() {
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
           <input
             type="search"
-            placeholder="Search products…"
+            placeholder={translate('products.search')}
             value={searchInput}
             onChange={(e: ChangeEvent<HTMLInputElement>) => setSearchInput(e.target.value)}
             className="w-full pl-9 pr-4 py-2.5 text-sm border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
@@ -246,7 +249,7 @@ export default function ProductsPage() {
               onChange={(e: ChangeEvent<HTMLSelectElement>) => setSelectedCategory(e.target.value)}
               className="px-3 py-2.5 text-sm border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
             >
-              <option value="">All categories</option>
+              <option value="">{translate('products.allCategories')}</option>
               {categories.map((cat) => (
                 <option key={cat._id} value={cat._id}>{cat.name}</option>
               ))}
@@ -259,7 +262,7 @@ export default function ProductsPage() {
               className="px-3 py-2.5 text-sm border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
             >
               {SORT_OPTIONS.map((opt, i) => (
-                <option key={opt.label} value={i}>{opt.label}</option>
+                <option key={opt.labelKey} value={i}>{translate(opt.labelKey)}</option>
               ))}
             </select>
           </div>
@@ -283,14 +286,14 @@ export default function ProductsPage() {
       {/* Empty state */}
       {!loading && products.length === 0 && (
         <div className="text-center py-16 text-gray-400 dark:text-gray-500">
-          <p className="text-lg mb-2">No products found</p>
-          <p className="text-sm mb-4">Try adjusting your search or filters.</p>
+          <p className="text-lg mb-2">{translate('products.noResults')}</p>
+          <p className="text-sm mb-4">{translate('products.noResultsHint')}</p>
           <button
             type="button"
             onClick={() => { setSearchInput(''); setSelectedCategory(''); }}
             className="text-sm text-indigo-600 dark:text-indigo-400 hover:underline"
           >
-            Clear filters
+            {translate('products.clearFilters')}
           </button>
         </div>
       )}
@@ -309,7 +312,7 @@ export default function ProductsPage() {
           </button>
 
           <span className="text-sm text-gray-600 dark:text-gray-300 px-4">
-            Page {page} of {totalPages}
+            {translate('common.page')} {page} {translate('common.of')} {totalPages}
           </span>
 
           <button

@@ -1,6 +1,6 @@
-# ShopHub — Developer Documentation
+# ShopHub — Technical Reference Documentation
 
-> **Notion import tip:** Paste this file into a Notion page using **/Markdown** or import via **Settings → Import → Markdown & CSV**.
+> A production-ready, bilingual (English/Arabic, LTR/RTL) e-commerce SPA with a full admin panel, enterprise-grade routing guards, a global error system, Angular-style environments, and a CMS-ready content pipeline.
 
 ---
 
@@ -10,118 +10,149 @@
 2. [Tech Stack](#2-tech-stack)
 3. [Getting Started](#3-getting-started)
 4. [Project Structure](#4-project-structure)
-5. [Architecture Deep Dive](#5-architecture-deep-dive)
-6. [Module Documentation](#6-module-documentation)
-7. [State Management](#7-state-management)
-8. [API Layer](#8-api-layer)
-9. [Internationalisation (i18n)](#9-internationalisation-i18n)
-10. [Theming](#10-theming)
-11. [Routing & Guards](#11-routing--guards)
-12. [Global Error System](#12-global-error-system)
-13. [CMS Content Service](#13-cms-content-service)
-14. [Error Boundary](#14-error-boundary)
-15. [Feature Flags](#15-feature-flags)
-16. [Mobile Navigation](#16-mobile-navigation)
-17. [Global Loader](#17-global-loader)
-18. [Type Definitions](#18-type-definitions)
-19. [Utilities](#19-utilities)
-20. [Configuration Files](#20-configuration-files)
-21. [Development Guidelines](#21-development-guidelines)
+5. [Environments System](#5-environments-system)
+6. [Application Bootstrap](#6-application-bootstrap)
+7. [Internationalisation (i18n)](#7-internationalisation-i18n)
+8. [Theming](#8-theming)
+9. [Routing Architecture](#9-routing-architecture)
+10. [Authentication & Auth Store](#10-authentication--auth-store)
+11. [API Layer](#11-api-layer)
+12. [State Management](#12-state-management)
+13. [Global Error System](#13-global-error-system)
+14. [App Initialization Gate](#14-app-initialization-gate)
+15. [CMS Content Service](#15-cms-content-service)
+16. [Feature Flags](#16-feature-flags)
+17. [Layouts](#17-layouts)
+18. [Admin Panel Pages](#18-admin-panel-pages)
+19. [User Storefront Pages](#19-user-storefront-pages)
+20. [Shared Components](#20-shared-components)
+21. [Form Validation](#21-form-validation)
+22. [Mock Server](#22-mock-server)
+23. [Build & Bundle Splitting](#23-build--bundle-splitting)
+24. [Development Guidelines](#24-development-guidelines)
 
 ---
 
 ## 1. Project Overview
 
-**ShopHub** is a production-ready, bilingual (English/Arabic, LTR/RTL) e-commerce SPA with a separate admin panel and enterprise-grade guard, error, and content architecture.
+**ShopHub** is a bilingual e-commerce single-page application built with React 19, TypeScript, and Vite. It ships two distinct surfaces:
+
+- **User Storefront** — public and authenticated shopping pages (home, product catalog, cart, wishlist, checkout, orders, profile).
+- **Admin Panel** — protected dashboard for managing products, categories, and orders (role-gated to `ADMIN` / `MANAGER`).
 
 ### Key capabilities
 
 | Capability | Detail |
 |---|---|
-| Storefront | Browse, search, filter, and buy products without logging in |
-| Cart | Guest cart persisted to localStorage; merged into server on login |
-| Wishlist | Synced to server after authentication |
-| Authentication | Email/password + Google, Facebook, Microsoft (Firebase OAuth) |
-| Admin panel | Product CRUD, category management, order management |
-| Role-based access | `CUSTOMER`, `MANAGER`, `ADMIN` roles with layered route guards |
-| Bilingual | Full Arabic RTL ↔ English LTR toggle with no page reload |
-| Dark mode | System-aware class-based dark theme, no FOUC |
-| Lazy loading | Every page is code-split; initial bundle 60–80% smaller |
-| Global loader | Single Zustand-driven overlay for all API requests |
-| Deep Link Guard | Async resource ownership + feature flag validation before render |
-| Whitelist Guard | Per-route allowlists (role + userId + feature flag) from central config |
-| Feature Guard | Gate any route behind a single feature flag |
-| Target URL redirect | `/login?targetUrl=/orders/123` deep-link flow, survives new tabs |
-| Global Error System | Centralized `ErrorCode` → display mode routing (PAGE / MODAL / TOAST / INLINE) |
-| CMS Content | `VITE_CONTENT_MODE=LOCAL` (i18n) or `CMS` (remote endpoint with cache + fallback) |
-| Error Playground | Interactive sandbox to test every error scenario at `/admin/error-playground` |
+| Bilingual UI | Full English + Arabic with automatic RTL layout switching |
+| Guard stack | ProtectedRoute → WhitelistGuard → RoleGuard → FeatureGuard → DeepLinkGuard |
+| Error system | Four display modes: PAGE, MODAL, TOAST, INLINE — driven by a typed error store |
+| CMS content | Locale and error config bundles fetched at boot; backend-swappable at runtime |
+| Auth | JWT access token (cookie) + silent refresh + feature flags per user |
+| API switching | Mock (json-server) ↔ real backend via `VITE_API_SOURCE` |
+| Code splitting | Every page is `React.lazy()` — ~70% smaller initial bundle |
+| Environments | Angular-style typed `environment.ts` / `environment.prod.ts` wrappers |
 
 ---
 
 ## 2. Tech Stack
 
-| Layer | Library | Version | Why |
-|---|---|---|---|
-| UI framework | React | 19 | Concurrent features, use() hook |
-| Routing | React Router | 7 | Nested routes, lazy loading, typed params |
-| State | Zustand | 5 | Minimal boilerplate, built-in persist middleware |
-| Styling | Tailwind CSS | 3.4 | Utility-first, RTL variants (`rtl:`), dark mode (`dark:`) |
-| Forms | React Hook Form | 7 | Uncontrolled inputs, minimal re-renders |
-| Validation | Zod | 4 | TypeScript-first schema inference |
-| HTTP | Axios | 1.13 | Interceptors for auth headers, global loader, and error system |
-| Auth (OAuth) | Firebase | 12 | Google / Facebook / Microsoft social login |
-| Icons | Lucide React | 0.577 | Tree-shaken SVG icons |
-| Build | Vite | 8 | Sub-second HMR, ESM-native |
-| Language | TypeScript | 5.9 | Strict mode, `erasableSyntaxOnly` enabled |
+### Runtime dependencies
+
+| Package | Version | Role |
+|---|---|---|
+| `react` | ^19.2 | UI framework |
+| `react-dom` | ^19.2 | DOM renderer |
+| `react-router-dom` | ^7.13 | Client-side routing |
+| `zustand` | ^5.0 | Global state management |
+| `axios` | ^1.13 | HTTP client |
+| `react-hook-form` | ^7.71 | Form state & validation |
+| `@hookform/resolvers` | ^5.2 | Zod adapter for RHF |
+| `zod` | ^4.3 | Schema-based validation |
+| `firebase` | ^12.10 | Social auth (Google, Facebook, Microsoft) |
+| `js-cookie` | ^3.0 | JWT cookie management |
+| `lucide-react` | ^0.577 | Icon library |
+| `tailwind-merge` | ^3.4 | Conditional Tailwind class merging |
+| `tailwindcss-animate` | ^1.0 | Animation utilities |
+
+### Dev dependencies
+
+| Package | Role |
+|---|---|
+| `vite` ^8 | Dev server + bundler |
+| `@vitejs/plugin-react` | Fast Refresh, JSX transform |
+| `vite-tsconfig-paths` | `@/` path alias resolution |
+| `typescript` ~5.9 | Type checking |
+| `tailwindcss` ^3.4 | Utility-first CSS |
+| `eslint` + `typescript-eslint` | Linting |
+| `json-server` ^0.17 | Mock REST API backend |
+| `concurrently` | Run Vite + json-server in parallel |
 
 ---
 
 ## 3. Getting Started
 
+### Prerequisites
+
+- Node.js ≥ 18
+- npm ≥ 9
+
+### Installation
+
 ```bash
-# Install dependencies
 npm install
-
-# Start development server (http://localhost:5173)
-npm run dev
-
-# Type-check + build for production
-npm run build
-
-# Preview production build locally
-npm run preview
-
-# Run ESLint
-npm run lint
 ```
 
-### Environment variables
+### Environment setup
 
-The project uses three env files:
+Copy `.env.example` to `.env.local` and fill in the required values:
 
-| File | When used | Key setting |
-|------|-----------|-------------|
-| `.env` | All environments | Firebase config, API base URL |
-| `.env.local` | Development only | `VITE_CONTENT_MODE=LOCAL` |
-| `.env.production` | Production build | `VITE_CONTENT_MODE=CMS`, CMS endpoint |
+```bash
+# API routing strategy: 'mock' (json-server) or 'real' (backend)
+VITE_API_SOURCE=mock
 
-```env
-# .env — shared across all environments
+# Content bundle source: 'local' (json-server) or 'backend' (CMS)
+VITE_CONTENT_SOURCE=local
+
+# Backend base URL (only used when VITE_API_SOURCE=real)
 VITE_LOGIN_AUTH_URL=https://api.freeapi.app/api/v1
-VITE_FIREBASE_API_KEY=...
-VITE_FIREBASE_AUTH_DOMAIN=...
-VITE_FIREBASE_PROJECT_ID=...
-VITE_FIREBASE_APP_ID=...
 
-# .env.local — development
-VITE_CONTENT_MODE=LOCAL
+# Mock server URL (only used in development)
+VITE_MOCK_SERVER_URL=http://localhost:3001
 
-# .env.production — production build
-VITE_CONTENT_MODE=CMS
-VITE_CMS_ENDPOINT=https://your-cms-api.example.com/content
+# Firebase credentials (required for social login)
+VITE_FIREBASE_API_KEY=
+VITE_FIREBASE_AUTH_DOMAIN=
+VITE_FIREBASE_PROJECT_ID=
+VITE_FIREBASE_STORAGE_BUCKET=
+VITE_FIREBASE_MESSAGING_SENDER_ID=
+VITE_FIREBASE_APP_ID=
 ```
 
-All variables must be prefixed with `VITE_` to be exposed to the browser by Vite.
+### NPM scripts
+
+| Command | Description |
+|---|---|
+| `npm run dev` | Vite dev server only |
+| `npm run dev:mock` | json-server mock backend only |
+| `npm run dev:all` | Both Vite + json-server in parallel (recommended for local development) |
+| `npm run build` | TypeScript compile → Vite production build |
+| `npm run preview` | Serve the production build locally |
+| `npm run lint` | ESLint code quality check |
+
+### Development workflow
+
+For full local development with mock APIs:
+
+```bash
+npm run dev:all
+```
+
+This starts:
+- Vite dev server at `http://localhost:5173`
+- json-server at `http://localhost:3001`
+
+Vite's proxy forwards `/api/v1/*` and `/content/*` to json-server automatically.
 
 ---
 
@@ -129,742 +160,672 @@ All variables must be prefixed with `VITE_` to be exposed to the browser by Vite
 
 ```
 react-auth/
-├── public/                     # Static assets (favicon, robots.txt)
+├── mock-server/            # json-server configuration + fixture data
+│   └── server.cjs
+├── public/                 # Static assets
 ├── src/
-│   ├── api/                    # Axios API call modules (one per domain)
+│   ├── api/                # Axios API modules (one file per domain)
 │   │   ├── base/
-│   │   │   └── axios.ts        # Axios instance factory (auth + loader + error interceptors)
-│   │   ├── auth.api.ts         # login, register, logout, refresh
-│   │   ├── cart.api.ts         # Cart CRUD (server-side)
-│   │   ├── categories.api.ts   # Category listing
-│   │   ├── orders.api.ts       # Order creation and listing
-│   │   ├── products.api.ts     # Product CRUD + pagination/search
-│   │   └── wishlist.api.ts     # Wishlist sync
-│   │
-│   ├── assets/                 # Static images bundled by Vite
-│   │
+│   │   │   └── axios.ts        # Axios instance factory + interceptors
+│   │   ├── auth.api.ts
+│   │   ├── cart.api.ts
+│   │   ├── categories.api.ts
+│   │   ├── orders.api.ts
+│   │   ├── products.api.ts
+│   │   └── wishlist.api.ts
 │   ├── components/
 │   │   ├── admin/
-│   │   │   └── DeleteModal.tsx         # Confirmation dialog for product delete
-│   │   ├── auth/
-│   │   │   ├── Divider.tsx             # "or" separator between form and social login
-│   │   │   ├── common/
-│   │   │   │   ├── error-notification/ # Red banner for API error messages
-│   │   │   │   ├── icons/              # SVG icons for Google, Facebook, Microsoft
-│   │   │   │   └── spinner/            # Inline loading spinner (auth forms)
+│   │   │   └── DeleteModal.tsx
+│   │   ├── auth/               # Login/Register shared UI
+│   │   │   ├── Divider.tsx
+│   │   │   ├── common/         # Error notification, icons, spinner
 │   │   │   └── social-media-auth/
-│   │   │       └── SocialLogin.tsx     # Firebase OAuth buttons row
 │   │   ├── common/
-│   │   │   └── GlobalLoader.tsx        # Fullscreen API loading overlay
+│   │   │   └── GlobalLoader.tsx
 │   │   ├── form/
-│   │   │   └── input/
-│   │   │       ├── FormInputControl.tsx # Reusable labelled input with error
-│   │   │       └── index.type.ts        # Prop types for form inputs
+│   │   │   └── input/          # FormInputControl (RHF-connected input)
 │   │   └── ui/
-│   │       └── Skeleton.tsx            # TableRowSkeleton + card skeletons
-│   │
+│   │       ├── InitSkeleton.tsx  # Boot skeleton (shown while AppInitializer loads)
+│   │       └── Skeleton.tsx
 │   ├── config/
-│   │   ├── Define.ts               # Axios instance export (authUrl)
-│   │   ├── firebase.ts             # Firebase app initialisation
-│   │   └── whitelist.config.ts     # ★ Per-route allowlist rules + findWhitelistRule()
-│   │
-│   ├── core/                       # ★ Enterprise systems (error, content)
-│   │   ├── errors/
-│   │   │   ├── error.types.ts      # ErrorCode, ErrorDisplayMode, ErrorConfig, ActiveError
-│   │   │   ├── error.config.ts     # Config map: 11 error codes → icon, i18n keys, actions
-│   │   │   ├── error.store.ts      # Zustand: pageError / modalError / toastQueue / inlineError
-│   │   │   ├── error.handler.ts    # resolveErrorCode() + handleApiError() + handleRouteError()
-│   │   │   ├── GlobalErrorRenderer.tsx  # PAGE overlay, MODAL dialog, TOAST stack via portals
-│   │   │   └── ErrorBoundary.tsx   # Class component; auto-resets on resetKey change
-│   │   └── content/
-│   │       └── content.service.ts  # useContent() — LOCAL (i18n) or CMS (fetch + cache)
-│   │
-│   ├── hooks/
-│   │   ├── useCartMerge.ts     # Merges localStorage cart into server on login
-│   │   ├── useDebounce.ts      # Generic debounce hook (used in search inputs)
-│   │   ├── useSocialAuth.ts    # Handles Firebase OAuth flow + auth store update
-│   │   └── useWishlistSync.ts  # Syncs local wishlist to server after login
-│   │
-│   ├── i18n/
-│   │   ├── i18n.context.tsx    # I18nProvider, useI18n hook, t() resolver
+│   │   ├── Define.ts           # Axios instance export (uses environment.ts)
+│   │   ├── firebase.ts         # Firebase app config (uses environment.ts)
+│   │   └── whitelist.config.ts # Fine-grained route access rules
+│   ├── core/
+│   │   ├── content/
+│   │   │   └── content.service.ts
+│   │   ├── errors/             # Global error system
+│   │   │   ├── ErrorBoundary.tsx
+│   │   │   ├── GlobalErrorRenderer.tsx
+│   │   │   ├── default-error.ts
+│   │   │   ├── error.config.ts
+│   │   │   ├── error.handler.ts
+│   │   │   ├── error.store.ts
+│   │   │   └── error.types.ts
+│   │   └── init/               # App initialization gate
+│   │       ├── AppInitializer.tsx
+│   │       ├── init.service.ts
+│   │       └── init.store.ts
+│   ├── environments/           # Angular-style typed environment config
+│   │   ├── environment.ts      # Development environment (default)
+│   │   └── environment.prod.ts # Production environment documentation
+│   ├── hooks/                  # Custom React hooks
+│   │   ├── useCartMerge.ts
+│   │   ├── useDebounce.ts
+│   │   ├── useSocialAuth.ts
+│   │   └── useWishlistSync.ts
+│   ├── i18n/                   # Internationalisation
+│   │   ├── i18n.context.tsx    # I18nProvider + useI18n hook
 │   │   └── locales/
-│   │       ├── en.ts           # English strings — source of truth (includes errors.* namespace)
-│   │       └── ar.ts           # Arabic strings — must satisfy Locale type
-│   │
+│   │       ├── en.ts           # Static English locale (TypeScript)
+│   │       ├── ar.ts           # Static Arabic locale (TypeScript)
+│   │       ├── default-en.ts   # Dynamic English bundle (CMS-fetched)
+│   │       └── default-ar.ts   # Dynamic Arabic bundle (CMS-fetched)
 │   ├── layouts/
-│   │   ├── AdminLayout.tsx     # Dark sidebar (gray-900) shell for /admin/* routes
-│   │   ├── AuthLayout.tsx      # Centered card shell for /login, /register
-│   │   └── UserLayout.tsx      # Sticky header + mobile nav shell for storefront
-│   │
+│   │   ├── AdminLayout.tsx     # Admin sidebar shell
+│   │   ├── AuthLayout.tsx      # Centered auth card shell
+│   │   └── UserLayout.tsx      # Storefront header + footer shell
 │   ├── pages/
-│   │   ├── Error.tsx           # Reusable — works via ?type= URL param OR code prop
-│   │   ├── NotFound.tsx        # 404 catch-all page
-│   │   ├── Unauthorized.tsx    # 403 page (insufficient role)
-│   │   ├── Login.tsx           # Login form — reads ?targetUrl= for deep-link redirect
-│   │   ├── Register.tsx        # Registration form
+│   │   ├── Error.tsx
+│   │   ├── Login.tsx
+│   │   ├── NotFound.tsx
+│   │   ├── Register.tsx
+│   │   ├── Unauthorized.tsx
 │   │   ├── admin/
+│   │   │   ├── AdminOrdersPage.tsx
+│   │   │   ├── CategoriesPage.tsx
+│   │   │   ├── CreateProductPage.tsx
 │   │   │   ├── DashboardPage.tsx
-│   │   │   ├── ProductsListPage.tsx    # Paginated product table with search/sort
-│   │   │   ├── CreateProductPage.tsx   # New product form with image upload
-│   │   │   ├── EditProductPage.tsx     # Pre-populated edit form
-│   │   │   ├── CategoriesPage.tsx      # Category CRUD
-│   │   │   ├── AdminOrdersPage.tsx     # All-orders view for admins/managers
-│   │   │   └── ErrorPlaygroundPage.tsx # ★ Interactive error testing sandbox
+│   │   │   ├── EditProductPage.tsx
+│   │   │   ├── ErrorPlaygroundPage.tsx
+│   │   │   └── ProductsListPage.tsx
 │   │   └── user/
-│   │       ├── HomePage.tsx            # Hero + featured products
-│   │       ├── ProductsPage.tsx        # Paginated catalogue with search, filter, sort
-│   │       ├── ProductDetailPage.tsx   # Single product view + add to cart
-│   │       ├── CartPage.tsx            # Cart items + order summary
-│   │       ├── CheckoutPage.tsx        # Shipping + payment + order placement
-│   │       ├── OrdersPage.tsx          # Order history with status tracker
-│   │       └── ProfilePage.tsx         # Account info + quick-action buttons
-│   │
+│   │       ├── CartPage.tsx
+│   │       ├── CheckoutPage.tsx
+│   │       ├── HomePage.tsx
+│   │       ├── OrdersPage.tsx
+│   │       ├── ProductDetailPage.tsx
+│   │       ├── ProductsPage.tsx
+│   │       ├── ProfilePage.tsx
+│   │       └── WishlistPage.tsx
 │   ├── routes/
-│   │   ├── AppRouter.tsx       # Complete route tree with all guards wired
-│   │   ├── ProtectedRoute.tsx  # Auth gate → /login?targetUrl=<path>
-│   │   ├── RoleGuard.tsx       # Role check → /unauthorized
-│   │   ├── WhitelistGuard.tsx  # ★ Fine-grained role/userId/flag allowlist
-│   │   ├── FeatureGuard.tsx    # ★ Single feature flag gate
-│   │   └── DeepLinkGuard.tsx   # ★ Async ownership check + feature flag validation
-│   │
-│   ├── schemas/
-│   │   ├── login.schema.ts     # Zod schema for login form
-│   │   ├── product.schema.ts   # Zod schema for product create/edit
-│   │   └── register.schema.ts  # Zod schema for registration form
-│   │
-│   ├── store/
-│   │   ├── auth.store.ts       # user, accessToken, featureFlags (+ setFeatureFlags)
-│   │   ├── cart.store.ts       # Cart with localStorage persist
-│   │   ├── ui.store.ts         # activeApiRequestsCount, toastQueue, modal
-│   │   └── wishlist.store.ts   # Wishlist + server sync
-│   │
+│   │   ├── AppRouter.tsx       # Full route tree with lazy loading
+│   │   ├── DeepLinkGuard.tsx   # Async resource ownership guard
+│   │   ├── FeatureGuard.tsx    # Feature flag guard
+│   │   ├── ProtectedRoute.tsx  # Authentication guard
+│   │   ├── RoleGuard.tsx       # Role-based access guard
+│   │   └── WhitelistGuard.tsx  # Fine-grained path access guard
+│   ├── schemas/                # Zod validation schemas
+│   │   ├── checkout.schema.ts
+│   │   ├── login.schema.ts
+│   │   ├── product.schema.ts
+│   │   └── register.schema.ts
+│   ├── store/                  # Zustand stores
+│   │   ├── auth.store.ts
+│   │   ├── cart.store.ts
+│   │   ├── ui.store.ts
+│   │   └── wishlist.store.ts
 │   ├── themes/
-│   │   └── theme.context.tsx   # ThemeProvider + useTheme hook (light/dark)
-│   │
+│   │   └── theme.context.tsx   # ThemeProvider + useTheme hook
 │   ├── types/
-│   │   ├── auth.types.ts       # UserType (role, permissions?), AuthResponse
-│   │   ├── cart.types.ts       # CartItem, CartState
-│   │   ├── order.types.ts      # Order, OrderItem, OrderStatus
-│   │   ├── product.types.ts    # Product, ProductCategory, PaginatedData
-│   │   └── wishlist.types.ts   # WishlistItem
-│   │
+│   │   └── auth.types.ts
 │   ├── utils/
-│   │   ├── cookie.service.ts   # getToken / setToken / removeToken (js-cookie)
-│   │   ├── normalizeApiError.ts # Extracts error message from Axios error objects
-│   │   ├── prefetch.ts         # import() calls to warm up lazy chunks on hover/login
-│   │   └── slug.ts             # extractProductId() — parses <slug>-<objectId> URLs
-│   │
-│   ├── App.tsx                 # Root: providers + GlobalLoader + GlobalErrorRenderer + AppRouter
-│   ├── index.css               # Tailwind directives + global base styles
-│   └── main.tsx                # ReactDOM.createRoot + BrowserRouter
-│
-├── .env                        # Shared env (Firebase, API URL)
-├── .env.local                  # Dev env (VITE_CONTENT_MODE=LOCAL)
-├── .env.production             # Prod env (VITE_CONTENT_MODE=CMS)
-├── eslint.config.js            # ESLint flat config (React hooks + TS rules)
+│   │   ├── cookie.service.ts
+│   │   ├── normalizeApiError.ts
+│   │   └── ...
+│   ├── App.tsx                 # Provider composition root
+│   └── main.tsx                # React DOM entry point
+├── .env                        # Base environment variables
+├── .env.local                  # Local overrides (git-ignored)
+├── .env.production             # Production environment (git-ignored)
+├── index.html
 ├── package.json
-├── postcss.config.js           # Tailwind + autoprefixer PostCSS pipeline
-├── tailwind.config.js          # darkMode: 'class', custom gray-750, animate plugin
-├── tsconfig.app.json           # App TypeScript config (strict, path aliases)
-├── tsconfig.json               # Root TypeScript references config
-├── tsconfig.node.json          # Node/Vite TypeScript config
-└── vite.config.ts              # Vite config with vite-tsconfig-paths plugin
+├── tsconfig.json
+└── vite.config.ts
 ```
 
 ---
 
-## 5. Architecture Deep Dive
+## 5. Environments System
 
-### Component tree
+The project uses an **Angular-style environments pattern** to centralize all `import.meta.env.*` reads into typed TypeScript files, eliminating scattered env reads throughout the codebase.
 
-```
-<BrowserRouter>              ← main.tsx
-  <I18nProvider>             ← App.tsx — language/RTL context
-    <ThemeProvider>          ← App.tsx — dark/light theme context
-      <ErrorBoundary>        ← App.tsx — top-level render error catch
-        <GlobalLoader />     ← App.tsx — API loading overlay (always mounted)
-        <GlobalErrorRenderer />  ← App.tsx — PAGE / MODAL / TOAST portals
-        <AppRouter>          ← App.tsx — full route tree
-          <Routes>
-            <AuthLayout>     ← /login, /register
-            <ErrorBoundary resetKey={pathname}>
-              <UserLayout>   ← /, /products, /products/:slugId, /cart
-                <ProtectedRoute> ← /checkout, /profile, /orders
-                <ProtectedRoute>
-                  <DeepLinkGuard> ← /orders/:id (ownership validation)
-            <ProtectedRoute>
-              <WhitelistGuard>
-                <RoleGuard [ADMIN, MANAGER]>
-                  <ErrorBoundary resetKey={pathname}>
-                    <AdminLayout> ← /admin/*
-                      <FeatureGuard> ← /admin/error-playground
-            /unauthorized
-            /error
-            *              ← NotFound
-```
-
-### Why layouts are separate from routes
-
-Each layout is a React Router `<Outlet>` wrapper. This means the layout renders once and stays mounted as child routes change — no layout flash when navigating within the same section. Admin and storefront have completely independent CSS contexts and sidebars.
-
-### Enterprise guard stack (admin routes)
-
-```
-Request: GET /admin/products/create
-
-ProtectedRoute     → Is user authenticated? No → /login?targetUrl=/admin/products/create
-                   → Yes ↓
-WhitelistGuard     → Does this route have a whitelist rule? Checked against whitelist.config.ts
-                   → Rule found; does user satisfy role/userId/flag conditions?
-                   → No → TOAST 'FORBIDDEN' error + redirect to fallbackPath
-                   → Yes ↓
-RoleGuard          → Does user.role ∈ allowedRoles? No → /unauthorized
-                   → Yes ↓
-AdminLayout        → Page renders
-```
-
-### Auth redirection flow
-
-```
-User visits /orders/123 (not logged in)
-  → ProtectedRoute → /login?targetUrl=%2Forders%2F123
-  → User logs in successfully
-  → Login.tsx reads ?targetUrl, decodes, validates (relative path, not /login)
-  → navigate('/orders/123')
-  → DeepLinkGuard validates resource ownership
-  → Page renders
-
-If no targetUrl:
-  → ADMIN / MANAGER → /admin/products
-  → CUSTOMER        → /
-```
-
-### Progressive authentication
-
-The storefront is fully public. Authentication is only required at the moment of genuine commitment:
-
-| Action | Auth required? | Reasoning |
-|---|---|---|
-| Browse products | No | Reduces friction, enables SEO |
-| Add to cart | No | Cart persists in localStorage |
-| View cart | No | Guest cart survives page refresh |
-| Checkout | **Yes** | Payment requires identity |
-| View orders | **Yes** | Sensitive purchase history |
-| View profile | **Yes** | Account management |
-
----
-
-## 6. Module Documentation
-
-### Auth module (`/login`, `/register`)
+### Files
 
 | File | Purpose |
 |---|---|
-| `pages/Login.tsx` | Email/password form + social login. Reads `?targetUrl=` for post-login deep-link redirect. |
-| `pages/Register.tsx` | Registration form with the same pattern. |
-| `components/auth/social-media-auth/SocialLogin.tsx` | Firebase OAuth buttons (Google, Facebook, Microsoft). |
-| `hooks/useSocialAuth.ts` | Handles the Firebase `signInWithPopup` flow and updates the auth store. |
-| `schemas/login.schema.ts` | Zod: email format + password min length. |
-| `schemas/register.schema.ts` | Zod: username, email, password, confirm password. |
+| `src/environments/environment.ts` | Development environment — reads from `.env` / `.env.local` |
+| `src/environments/environment.prod.ts` | Production documentation — documents required `.env.production` variables |
 
-**Role-based redirect after login:**
+### `Environment` interface
 
-```
-Login success
-  ├── ?targetUrl present (e.g. /orders/123) → navigate there
-  ├── state.from present (fallback)          → navigate there
-  ├── ADMIN or MANAGER (no redirect target)  → /admin/products
-  └── CUSTOMER (no redirect target)          → /
-```
-
-**`resolveRedirectTarget(targetUrlParam, stateFrom)`** validates the redirect destination:
-- Rejects absolute URLs (only relative paths allowed)
-- Rejects `/login` and `/register` to prevent redirect loops
-- Decodes the URI-encoded string before navigating
-
----
-
-### User / Storefront module
-
-| File | Purpose |
-|---|---|
-| `layouts/UserLayout.tsx` | Sticky header, desktop nav, two mobile nav modes, footer. |
-| `pages/user/HomePage.tsx` | Hero section + featured products grid. |
-| `pages/user/ProductsPage.tsx` | Paginated catalogue with search, category filter, sort. |
-| `pages/user/ProductDetailPage.tsx` | Product image, description, add-to-cart, wishlist toggle. |
-| `pages/user/CartPage.tsx` | Cart items list, quantity controls, order summary, checkout CTA. |
-| `pages/user/CheckoutPage.tsx` | Shipping form + payment form + order placement. |
-| `pages/user/OrdersPage.tsx` | Order history with step-by-step status tracker. |
-| `pages/user/ProfilePage.tsx` | Account info + quick-action buttons. |
-
-**Product URL format:**
-
-```
-/products/<human-readable-slug>-<24-char-ObjectId>
-Example: /products/nike-air-max-270-64c8f1234567890123456789
-```
-
-`extractProductId()` in `utils/slug.ts` strips the slug prefix and returns the ObjectId for the API call. Legacy pure-ID URLs continue to work.
-
----
-
-### Admin module (`/admin/*`)
-
-| File | Purpose |
-|---|---|
-| `layouts/AdminLayout.tsx` | Dark sidebar (desktop always-on, mobile drawer), header with user info. |
-| `pages/admin/DashboardPage.tsx` | Admin dashboard overview. |
-| `pages/admin/ProductsListPage.tsx` | Data table: search, sort (name/price/date), category filter, pagination, delete. |
-| `pages/admin/CreateProductPage.tsx` | Product creation form with image upload. |
-| `pages/admin/EditProductPage.tsx` | Pre-populated edit form. |
-| `pages/admin/CategoriesPage.tsx` | Category CRUD. |
-| `pages/admin/AdminOrdersPage.tsx` | All-orders view for admins/managers. |
-| `pages/admin/ErrorPlaygroundPage.tsx` | ★ Interactive sandbox to trigger, test, and preview every error scenario. |
-| `components/admin/DeleteModal.tsx` | Confirmation dialog before permanent deletion. |
-
-**Access control:** Both `ADMIN` and `MANAGER` roles access all admin routes via `ProtectedRoute > WhitelistGuard > RoleGuard`. The Error Playground additionally requires the `errorPlayground` feature flag.
-
-**Admin i18n keys:**
-
-```typescript
-admin.nav.{dashboard, products, categories, orders, errorPlayground, signOut}
-admin.products.{title, newProduct, search, allCategories, sort.*, table.*, ...}
-admin.categories.{title, newCategory, empty}
-admin.orders.{title, empty}
-admin.deleteModal.{title, message, confirm, cancel}
-admin.errorPlayground.{title, description, ...}
-```
-
----
-
-### Error pages
-
-| File | Purpose |
-|---|---|
-| `pages/Error.tsx` | Reusable error page. Works as a standalone route (`/error?type=network`) OR as a prop-driven component in the Error Playground. |
-| `pages/NotFound.tsx` | 404 catch-all. |
-| `pages/Unauthorized.tsx` | 403 page — shown when `RoleGuard` fails. |
-
-**`Error.tsx` resolution order:**
-
-```
-1. code prop              → look up in ERROR_CONFIG_MAP
-2. ?type= URL param       → map via LEGACY_TYPE_MAP (network, server, unknown)
-3. UNKNOWN_ERROR fallback → always shows something
-```
-
-Props `icon`, `title`, `description`, `primaryAction`, `secondaryAction` all override the config defaults.
-
----
-
-## 7. State Management
-
-All global state uses **Zustand** stores in `src/store/` and `src/core/errors/`.
-
-### `auth.store.ts`
-
-| State | Type | Persistence | Description |
-|---|---|---|---|
-| `user` | `UserType \| null` | `localStorage 'auth-user'` | Authenticated user object |
-| `accessToken` | `string \| null` | Memory only | JWT — not stored in localStorage for security |
-| `featureFlags` | `Record<string, boolean>` | `localStorage 'auth-feature-flags'` | Per-user feature toggles |
-
-| Action | Description |
-|---|---|
-| `setAuth(user, token)` | Called after login/register. Sets user + token. |
-| `setAccessToken(token)` | Updates the in-memory token (e.g. after refresh). |
-| `setFeatureFlags(flags)` | Merges new flags into the store + persists to localStorage. |
-| `logout()` | Clears user, token, cookie, and resets feature flags to defaults. |
-
-**Feature flag defaults:**
-- DEV: `{ errorPlayground: true }` — playground accessible without backend
-- Production: `{}` — all flags disabled until set by `setFeatureFlags()` after login
-
----
-
-### `cart.store.ts`
-
-Persisted to `localStorage` via Zustand's `persist` middleware. Guest carts survive page refresh. On login, `useCartMerge` sends the local cart to the server and clears it.
-
-| Action | Description |
-|---|---|
-| `addItem(product, qty)` | Adds or increments a cart item. |
-| `removeItem(productId)` | Removes item from cart. |
-| `updateQty(productId, qty)` | Sets exact quantity. |
-| `clearCart()` | Empties the cart. |
-| `getTotalItems()` | Derived: sum of all quantities. |
-| `getTotalPrice()` | Derived: sum of price × quantity. |
-
----
-
-### `ui.store.ts`
-
-Manages global UI state unrelated to errors.
-
-| State | Type | Description |
-|---|---|---|
-| `activeApiRequestsCount` | `number` | Semaphore counter for GlobalLoader visibility. |
-| `toastQueue` | `GenericToast[]` | Non-error notifications (success, info, warning). |
-| `modal` | `GenericModal \| null` | Non-error confirmation/info dialogs. |
-
-| Action | Description |
-|---|---|
-| `startLoading()` | Increments request counter. Called by Axios request interceptor. |
-| `stopLoading()` | Decrements request counter, clamped to ≥ 0. |
-| `pushToast(message, variant?, duration?)` | Adds a success/info/warning toast (default 3000 ms). |
-| `removeToast(id)` | Removes a toast by ID. |
-| `openModal(modal)` | Opens a generic modal. |
-| `closeModal()` | Closes the current modal. |
-
-> **Separation from error.store:** Error-specific state (page error, modal error, error toasts) lives in `core/errors/error.store.ts` to avoid bloating ui.store and to allow the error system to be imported independently.
-
-`GlobalLoader` renders visible when `activeApiRequestsCount > 0`. A counter (not a boolean) ensures parallel requests don't hide the loader early.
-
----
-
-### `error.store.ts` (in `src/core/errors/`)
-
-The runtime hub for all application errors. See [Section 12 — Global Error System](#12-global-error-system) for the full description.
-
-| State | Type | Description |
-|---|---|---|
-| `pageError` | `ActiveError \| null` | Fullscreen overlay error. Replaced by new PAGE errors. |
-| `modalError` | `ActiveError \| null` | Dialog overlay error. Replaced by new MODAL errors. |
-| `toastQueue` | `ActiveError[]` | Multiple error toasts can coexist (max 5). |
-| `inlineError` | `ActiveError \| null` | Component-level error (not rendered by GlobalErrorRenderer). |
-
-| Action | Description |
-|---|---|
-| `pushError(code, options?)` | Create and route an error to the correct display slot. |
-| `clearPageError()` | Clear the fullscreen overlay. |
-| `clearModalError()` | Clear the modal. |
-| `removeToast(id)` | Remove one toast from the queue. |
-| `clearInlineError()` | Clear the inline error. |
-| `clearAll()` | Reset all slots. |
-
----
-
-### `wishlist.store.ts`
-
-Persisted to `localStorage`. Synced to server after login via `useWishlistSync`.
-
----
-
-## 8. API Layer
-
-### `src/api/base/axios.ts` — Axios instance
-
-The shared Axios instance has three interceptors:
-
-**Request interceptor:**
-- Attaches `Authorization: Bearer <token>` from `auth.store`.
-- Increments `ui.store.activeApiRequestsCount` (shows GlobalLoader) unless `showGlobalLoader: false`.
-
-**Response interceptor (success):**
-- Decrements `ui.store.activeApiRequestsCount`.
-
-**Response interceptor (error):**
-- Decrements `ui.store.activeApiRequestsCount`.
-- On `401 Unauthorized`: attempts a token refresh. If refresh succeeds, retries the original request. If it fails, calls `logout()`.
-- On `403 Forbidden`: calls `handleApiError()` → pushes `FORBIDDEN` to error store.
-- On network error (no response): calls `handleApiError()` → pushes `NETWORK_ERROR`.
-- On `5xx` server error: calls `handleApiError()` → pushes `SERVER_ERROR`.
-- On `400`/`422` validation errors: **NOT pushed globally** — components handle these with field-level messages.
-- **No more `window.location.assign()`** — the error store + `GlobalErrorRenderer` handles display.
-
-**Opting out of the global loader:**
-
-```typescript
-// This request will NOT show the GlobalLoader overlay
-axios.get('/products', { showGlobalLoader: false });
-```
-
-**Opting out of the global error handler:**
-
-```typescript
-// Component will handle the error itself
-axios.post('/orders', payload, { skipGlobalErrorHandler: true });
-```
-
-### Axios module augmentation
-
-The `InternalAxiosRequestConfig` type is extended with custom flags:
-
-```typescript
-declare module 'axios' {
-  interface InternalAxiosRequestConfig {
-    showGlobalLoader?: boolean;    // default: true
-    skipGlobalErrorHandler?: boolean; // default: false
-    _loaderStarted?: boolean;      // internal: was loader started for this request?
-    _retry?: boolean;              // internal: is this a retry after token refresh?
-  }
+```ts
+export interface Environment {
+  production: boolean;           // true only in `vite build`
+  apiSource: 'mock' | 'real';   // API routing strategy
+  apiUrl: string;                // Backend base URL
+  contentSource: 'local' | 'backend'; // CMS bundle strategy
+  mockServerUrl: string;         // json-server URL (dev only)
+  firebase: {
+    apiKey: string;
+    authDomain: string;
+    projectId: string;
+    storageBucket: string;
+    messagingSenderId: string;
+    appId: string;
+  };
 }
 ```
 
-### API modules
+### Usage
 
-| File | Endpoints |
+```ts
+import { environment } from '@/environments/environment';
+
+if (environment.production) { ... }
+const baseUrl = environment.apiUrl;
+```
+
+### How Vite resolves environment variables
+
+| File | When loaded |
 |---|---|
-| `auth.api.ts` | `POST /auth/login`, `POST /auth/register`, `POST /auth/logout`, `POST /auth/refresh` |
-| `products.api.ts` | `GET /products`, `GET /products/:id`, `POST /products`, `PUT /products/:id`, `DELETE /products/:id` |
-| `categories.api.ts` | `GET /categories`, `POST /categories`, `DELETE /categories/:id` |
-| `cart.api.ts` | `GET /cart`, `POST /cart`, `DELETE /cart/:itemId` |
-| `orders.api.ts` | `GET /orders`, `GET /orders/:id`, `POST /orders` |
-| `wishlist.api.ts` | `GET /wishlist`, `POST /wishlist`, `DELETE /wishlist/:id` |
+| `.env` | Always (base values) |
+| `.env.local` | Local dev overrides (git-ignored) |
+| `.env.production` | `vite build` only |
+
+> The `.env*` files at the project root are the source of truth for runtime values. The TypeScript `environment.ts` files are **typed wrappers** — they provide autocompletion and compile-time safety. They do not move or replace the Vite `.env` files.
+
+### Consumers
+
+All code that needs environment values imports from `@/environments/environment`:
+
+- `src/config/Define.ts` — chooses mock vs real API base URL
+- `src/config/firebase.ts` — Firebase app initialization
+- `src/core/init/init.service.ts` — content bundle strategy (`local` vs `backend`)
 
 ---
 
-## 9. Internationalisation (i18n)
+## 6. Application Bootstrap
+
+Provider wrapping order in `App.tsx` (outer → inner):
+
+```
+I18nProvider          ← language + RTL (reads localStorage on mount)
+  ThemeProvider       ← dark / light theme (reads localStorage on mount)
+    AppInitializer    ← blocks router until locale + error config bundles load
+      ErrorBoundary   ← top-level render-error safety net
+        GlobalLoader  ← fullscreen API spinner (z-9999)
+        GlobalErrorRenderer ← error PAGE / MODAL / TOAST overlays
+        AppRouter     ← full route tree (only mounts when AppInitializer.isReady)
+```
+
+**Why this order matters:**
+
+1. `I18nProvider` and `ThemeProvider` run first so `dir`, `lang`, and the `dark` class are applied to `<html>` synchronously — preventing layout flash before any paint.
+2. `AppInitializer` gate ensures all locale strings and error config are available before any page renders.
+3. `GlobalLoader` and `GlobalErrorRenderer` sit above the router so they overlay all page content.
+
+---
+
+## 7. Internationalisation (i18n)
 
 ### Architecture
 
-Context-based (no external library). Language preference is persisted in `localStorage` under `app-lang`.
-
 ```
-I18nProvider (App.tsx)
-  ├── Reads localStorage on mount → sets initial lang
-  ├── Sets document.documentElement.lang + dir
-  └── Provides { lang, dir, t(), setLang() } via context
-```
-
-### Adding a translation key
-
-1. Add the key to `src/i18n/locales/en.ts` (source of truth).
-2. TypeScript will produce a compile error in `ar.ts` until you add the matching Arabic key there too.
-
-### Key structure
-
-```typescript
-const { t } = useI18n();
-t('nav.home')                        // → 'Home' | 'الرئيسية'
-t('auth.login.title')                // → 'Welcome back!' | 'مرحباً بعودتك!'
-t('admin.nav.dashboard')             // → 'Dashboard' | 'لوحة التحكم'
-t('errors.serverError.title')        // → 'Server Error' | 'خطأ في الخادم'
-t('common.retry')                    // → 'Retry' | 'حاول مجدداً'
+useI18n()                    ← React hook (any component)
+  I18nProvider               ← React Context (wraps App)
+    i18n.context.tsx         ← provider + hook + resolve()
+      LOCALES (static)       ← en.ts / ar.ts (always available)
+      dynamicLocales (store) ← useInitStore — CMS-fetched bundles
+        init.store.ts
 ```
 
-### Namespaces
-
-| Namespace | Covers |
-|---|---|
-| `nav.*` | Shared navigation labels (storefront header) |
-| `home.*` | Homepage hero, features, featured products |
-| `products.*` | Products list page |
-| `product.*` | Product detail page |
-| `cart.*` | Cart page |
-| `checkout.*` | Checkout page |
-| `orders.*` | Orders page (including status labels) |
-| `profile.*` | Profile page |
-| `common.*` | Shared: loading, error, add, remove, cancel, retry, goHome… |
-| `auth.login.*` | Login page |
-| `auth.register.*` | Register page |
-| `admin.nav.*` | Admin sidebar navigation |
-| `admin.products.*` | Admin products table + forms |
-| `admin.categories.*` | Admin categories page |
-| `admin.orders.*` | Admin orders page |
-| `admin.deleteModal.*` | Delete confirmation dialog |
-| `admin.errorPlayground.*` | Error playground page |
-| `errors.*` | ★ Global error system — 11 codes × (title + description) |
-
-### `errors.*` namespace
-
-Each of the 11 `ErrorCode` values maps to two keys:
-
-```typescript
-errors.orderNotFound.title       errors.orderNotFound.description
-errors.productNotFound.title     errors.productNotFound.description
-errors.unauthorized.title        errors.unauthorized.description
-errors.forbidden.title           errors.forbidden.description
-errors.sessionExpired.title      errors.sessionExpired.description
-errors.serverError.title         errors.serverError.description
-errors.networkError.title        errors.networkError.description
-errors.featureDisabled.title     errors.featureDisabled.description
-errors.validationError.title     errors.validationError.description
-errors.resourceNotFound.title    errors.resourceNotFound.description
-errors.unknownError.title        errors.unknownError.description
-```
-
-### RTL (Right-to-Left)
-
-When `lang === 'ar'`, `I18nProvider` sets `document.documentElement.dir = 'rtl'`. This causes the browser to automatically mirror flex layout, text alignment, and block flow.
+The translation function is named `translate` (Angular `translate` pipe convention):
 
 ```tsx
-// Logical properties (preferred — works in both LTR and RTL)
-className="ps-4"      // padding-inline-start (left in LTR, right in RTL)
-className="me-2"      // margin-inline-end
-className="start-0"   // left: 0 in LTR, right: 0 in RTL
+const { translate, lang, setLang, dir } = useI18n();
 
-// RTL variant (for specific overrides)
-className="pl-4 rtl:pr-4 rtl:pl-0"
+<h1>{translate('home.hero.title')}</h1>
+<button onClick={() => setLang(lang === 'en' ? 'ar' : 'en')}>
+  {translate('nav.language')}
+</button>
 ```
 
----
+### Key resolution
 
-## 10. Theming
+Keys are dot-notation paths into the locale object:
 
-**Strategy:** Tailwind's `class` dark mode. `ThemeProvider` toggles the `dark` class on `<html>`.
-
-```tsx
-// theme.context.tsx
-document.documentElement.classList.toggle('dark', theme === 'dark');
+```ts
+translate('nav.home')              // → 'Home' (en) | 'الرئيسية' (ar)
+translate('admin.orders.title')    // → 'Orders' (en) | 'الطلبات' (ar)
+translate('missing.key')           // → 'missing.key' (key itself as fallback)
+translate('missing.key', 'N/A')    // → 'N/A' (explicit fallback)
 ```
 
-Preference is persisted to `localStorage` under `app-theme`. Applied before first render to prevent FOUC (Flash Of Unstyled Content).
+The resolver walks the locale object by splitting the key on `.` and traversing each level. A missing key returns the fallback — no crash.
 
-**Usage:**
+### Interpolation
 
-```tsx
-const { theme, toggleTheme } = useTheme();
-// theme === 'light' | 'dark'
+The `translate()` function does not support interpolation arguments. For strings with dynamic values, use `.replace()` after calling `translate()`:
+
+```ts
+translate('admin.products.showing')
+  .replace('{{from}}', String(startItem))
+  .replace('{{to}}', String(endItem))
+  .replace('{{total}}', String(totalItems))
+// en locale: 'Showing {{from}}–{{to}} of {{total}}'
+// → 'Showing 1–20 of 147'
 ```
 
-In Tailwind classes, add `dark:` prefix for dark overrides:
+### Dynamic bundles vs static bundles
 
-```tsx
-className="bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
-```
-
----
-
-## 11. Routing & Guards
-
-### Route tree
-
-```
-/login                   → AuthLayout             (public)
-/register                → AuthLayout             (public)
-/                        → UserLayout             (public)
-/products                → UserLayout             (public)
-/products/:slugId        → UserLayout             (public)
-/cart                    → UserLayout             (public)
-/checkout                → ProtectedRoute > UserLayout
-/orders                  → ProtectedRoute > UserLayout
-/profile                 → ProtectedRoute > UserLayout
-/orders/:id              → ProtectedRoute > DeepLinkGuard(order) > UserLayout
-/admin                   → redirect → /admin/dashboard
-/admin/dashboard         → ProtectedRoute > WhitelistGuard > RoleGuard > AdminLayout
-/admin/products          → ProtectedRoute > WhitelistGuard > RoleGuard > AdminLayout
-/admin/products/create   → ProtectedRoute > WhitelistGuard > RoleGuard > AdminLayout
-/admin/products/:id/edit → ProtectedRoute > WhitelistGuard > RoleGuard > AdminLayout
-/admin/categories        → ProtectedRoute > WhitelistGuard > RoleGuard > AdminLayout
-/admin/orders            → ProtectedRoute > WhitelistGuard > RoleGuard > AdminLayout
-/admin/error-playground  → ProtectedRoute > WhitelistGuard > RoleGuard > FeatureGuard > AdminLayout
-/unauthorized            → standalone (public)
-/error                   → standalone (public, accepts ?type= or code prop)
-*                        → NotFound (catch-all)
-```
-
-### `ProtectedRoute`
-
-Checks `useAuthStore().user`. If `null`, redirects to:
-
-```
-/login?targetUrl=<encodeURIComponent(pathname + search + hash)>
-```
-
-Also populates `state.from` for backward compatibility with any code reading `state.from`.
-
-### `RoleGuard`
-
-```tsx
-<RoleGuard allowedRoles={['ADMIN', 'MANAGER']}>
-```
-
-Checks `user.role` against `allowedRoles`. Redirects to `/unauthorized` on failure.
-
-### `WhitelistGuard`
-
-Reads per-route rules from `src/config/whitelist.config.ts`. If no rule exists for the current path, renders `<Outlet />` immediately (passthrough).
-
-If a rule is found, it checks in order:
-1. `allowedRoles` — user's role must be in the list
-2. `allowedUserIds` — user's `_id` must be in the list
-3. `requiredFeatureFlags` — all listed flags must be `true` in `featureFlags`
-
-On any failure: `handleRouteError('FORBIDDEN', { displayModeOverride: 'TOAST' })` + `<Navigate to={fallbackPath} />`.
-
-**Whitelist config example:**
-
-```typescript
-// src/config/whitelist.config.ts
-export const WHITELIST_CONFIG: Record<string, WhitelistRule> = {
-  '/admin/error-playground': {
-    allowedRoles: ['ADMIN'],
-    requiredFeatureFlags: ['errorPlayground'],
-  },
-  '/admin/products': {
-    allowedRoles: ['ADMIN', 'MANAGER'],
-    matchPrefix: true,   // applies to /admin/products, /admin/products/create, etc.
-  },
-};
-```
-
-`findWhitelistRule(pathname)` returns the most specific matching rule: exact match first, then longest prefix match.
-
-### `FeatureGuard`
-
-```tsx
-<FeatureGuard featureFlag="errorPlayground" showPageError>
-```
-
-Reads `useAuthStore((s) => s.featureFlags)[featureFlag]`. If `false` or missing:
-- `showPageError` true → pushes `FEATURE_DISABLED` as `PAGE` error
-- `showPageError` false (default) → pushes as `TOAST`
-
-Then navigates to `fallbackPath` (default `/`).
-
-### `DeepLinkGuard`
-
-Used for deep links to specific resources (e.g. `/orders/:id`) where both ownership validation and feature flag checks are needed before rendering.
-
-```tsx
-<DeepLinkGuard resourceType="order" featureFlag="deepLinks" fallbackPath="/">
-```
-
-**Flow:**
-
-1. Shows `<GlobalLoader show />` while validating.
-2. Extracts the resource ID from `useParams()`.
-3. Calls `checkResourceOwnership(resourceType, id, user._id)` (async, mock — replace with real API call).
-4. Optionally checks a feature flag.
-5. On failure: pushes appropriate error code → navigates to `fallbackPath`.
-6. On success: renders `<Outlet />`.
-
-Uses the `cancelled` ref pattern in `useEffect` cleanup to prevent state updates after unmount.
-
-| Validation result | Error code pushed | Navigation |
+| Bundle type | Source | When used |
 |---|---|---|
-| Resource not found | `RESOURCE_NOT_FOUND` | `fallbackPath` |
-| User does not own resource | `FORBIDDEN` | `fallbackPath` |
-| Feature flag disabled | `FEATURE_DISABLED` | `fallbackPath` |
-| Valid | — | Renders `<Outlet />` |
+| Static | `en.ts` / `ar.ts` (TypeScript imports) | Always available; fallback if CMS fetch fails |
+| Dynamic | CMS/json-server via `fetchLocaleBundle()` | Loaded at boot by `AppInitializer`; overrides static |
 
-### Lazy loading
+The translate function tries the dynamic bundle first, then falls back to the static bundle. This means static bundles always have the latest keys (added during development), while the dynamic bundle provides server-overridable copy.
 
-Every page component is loaded via `React.lazy()`. The `Page` helper in `AppRouter.tsx` wraps each with `<Suspense fallback={<GlobalLoader show />}>` so the GlobalLoader also shows during chunk download:
+### RTL layout
 
-```typescript
-const Page = ({ component: C }: { component: ComponentType }) => (
-  <Suspense fallback={<GlobalLoader show />}>
-    <C />
-  </Suspense>
-);
+When `lang === 'ar'`:
+1. `document.documentElement.dir = 'rtl'` — browser mirrors block layout automatically
+2. `document.documentElement.lang = 'ar'` — screen readers use Arabic phoneme rules
+3. Tailwind `rtl:` variants are available for fine-grained overrides
 
-const ProductsPage = lazy(() => import('@/pages/user/ProductsPage'));
-// used as: <Page component={ProductsPage} />
+### Locale files
+
+| File | Purpose |
+|---|---|
+| `src/i18n/locales/en.ts` | Static English locale (always bundled) |
+| `src/i18n/locales/ar.ts` | Static Arabic locale (always bundled) |
+| `src/i18n/locales/default-en.ts` | Dynamic English bundle served via CMS / json-server |
+| `src/i18n/locales/default-ar.ts` | Dynamic Arabic bundle served via CMS / json-server |
+
+`default-en.ts` exports a `Locale` type that TypeScript enforces across all locale files — add a key to `default-en.ts` and the compiler immediately flags any locale file that doesn't have it.
+
+### Locale key structure
+
+```
+nav.*            Navigation links (home, products, orders, etc.)
+common.*         Shared UI labels (lightMode, darkMode, etc.)
+auth.*           Login / Register page strings
+home.*           Storefront home page
+products.*       Product catalog + product detail
+cart.*           Shopping cart
+wishlist.*       Wishlist
+checkout.*       Checkout form + confirmation
+orders.*         User orders list + detail
+profile.*        User profile page
+admin.dashboard.*  Admin dashboard
+admin.products.*   Admin products management
+admin.categories.* Admin categories management
+admin.orders.*     Admin orders management
+errors.*         Global error messages (PAGE / MODAL / TOAST content)
+```
+
+### Adding a new translation key
+
+1. Add the key to `src/i18n/locales/default-en.ts` (TypeScript will enforce it elsewhere)
+2. Add the Arabic translation to `src/i18n/locales/default-ar.ts`
+3. Add the same key to `src/i18n/locales/en.ts` and `src/i18n/locales/ar.ts` (static bundles)
+4. Use `translate('your.key')` in the component
+
+---
+
+## 8. Theming
+
+Theme support is provided by `src/themes/theme.context.tsx` using the same React Context pattern as i18n.
+
+### Supported themes
+
+- `light` — default, white/gray palette
+- `dark` — dark gray/slate palette
+- `custom` — extensible third variant (hook exposes current theme name)
+
+### Usage
+
+```tsx
+import { useTheme } from '@/themes/theme.context';
+
+const { theme, toggleTheme } = useTheme();
+
+<button onClick={toggleTheme}>
+  {theme === 'dark' ? <Sun /> : <Moon />}
+</button>
+```
+
+`toggleTheme` cycles: `light → dark → light`. The theme name is persisted to `localStorage` and the `dark` class is applied to `<html>` synchronously on mount to prevent FOUC.
+
+### Tailwind dark mode
+
+Tailwind is configured with `darkMode: 'class'`. All dark-mode styles use the `dark:` prefix:
+
+```html
+<div class="bg-white dark:bg-gray-900 text-gray-900 dark:text-white">
 ```
 
 ---
 
-## 12. Global Error System
+## 9. Routing Architecture
 
-The error system provides centralized, structured error handling with four display modes. All errors flow through a single Zustand store and are rendered by `GlobalErrorRenderer`.
+### Route tree overview
 
-### Type system (`src/core/errors/error.types.ts`)
+```
+/login                        AuthLayout → Login
+/register                     AuthLayout → Register
 
-```typescript
-// 11 error codes — string literal union (not enum, for erasableSyntaxOnly compat)
-export type ErrorCode =
+/                             UserLayout (ErrorBoundary)
+/products                       → ProductsPage
+/products/:slugId               → ProductDetailPage
+/cart                           → CartPage
+/wishlist                       → WishlistPage
+
+  ProtectedRoute (auth required)
+  /checkout                     → CheckoutPage
+  /profile                      → ProfilePage
+  /orders                       → OrdersPage
+    DeepLinkGuard (ownership)
+    /orders/:id                 → OrdersPage (detail view)
+
+ProtectedRoute
+  WhitelistGuard (config/whitelist.config.ts)
+    RoleGuard (ADMIN | MANAGER)
+      AdminLayout (ErrorBoundary)
+      /admin                    → redirect /admin/dashboard
+      /admin/dashboard          → DashboardPage
+      /admin/products           → ProductsListPage
+      /admin/products/create    → CreateProductPage
+      /admin/products/:id/edit  → EditProductPage
+      /admin/categories         → CategoriesPage
+      /admin/orders             → AdminOrdersPage
+        FeatureGuard (errorPlayground flag)
+        /admin/error-playground → ErrorPlaygroundPage
+
+/unauthorized                 Unauthorized (no layout)
+/error                        ErrorPage (no layout)
+/*                            NotFound (catch-all)
+```
+
+### Guard stack explained
+
+Guards are React Router layout routes (components that render `<Outlet />`). They compose by nesting — each outer guard runs before inner guards.
+
+#### `ProtectedRoute`
+
+Checks `useAuthStore().user !== null`. Redirects unauthenticated users to `/login?targetUrl=<encoded-path>`. After login, redirects back to the original URL.
+
+```ts
+// Redirect flow:
+// User visits /checkout (unauthenticated)
+//   → ProtectedRoute → /login?targetUrl=%2Fcheckout
+//   → Login success  → navigate('/checkout', { replace: true })
+```
+
+#### `WhitelistGuard`
+
+Reads `WHITELIST_CONFIG` from `src/config/whitelist.config.ts`. For each admin route, enforces `allowedRoles`, `allowedUserIds`, and `requiredFeatureFlags`. Redirects to `/unauthorized` on violation.
+
+Rules support exact-path and prefix matching (`matchPrefix: true`).
+
+#### `RoleGuard`
+
+Checks `user.role` against an `allowedRoles` prop. Used for broad role access (ADMIN, MANAGER). Redirects to `/unauthorized`.
+
+#### `FeatureGuard`
+
+Checks `useAuthStore().featureFlags[featureFlag]`. Redirects to `/unauthorized` if the flag is false or absent.
+
+```tsx
+<FeatureGuard featureFlag="errorPlayground" />
+```
+
+#### `DeepLinkGuard`
+
+Async ownership check. Reads `:id` from route params, calls a service to verify the resource belongs to the current user. Shows a loading state while the async check runs. Redirects to `/unauthorized` on failure.
+
+```tsx
+<DeepLinkGuard resourceType="order" />
+```
+
+### Code splitting
+
+Every page is wrapped in `React.lazy()` + `<Suspense>`. The `<Page>` helper component handles this uniformly:
+
+```tsx
+function Page({ component: Component }: { component: React.ComponentType }) {
+  return (
+    <Suspense fallback={<GlobalLoader show />}>
+      <Component />
+    </Suspense>
+  );
+}
+```
+
+Each page's JavaScript is only downloaded when the user first visits that route, reducing the initial bundle by approximately 70%.
+
+### Error Boundary per layout
+
+Both `AdminLayout` and `UserLayout` are wrapped in an `ErrorBoundary` at the route level. Render-time JS errors inside a layout section show a fallback UI without crashing the entire application. The boundary resets automatically when the user navigates to a new route via `resetKey={location.pathname}`.
+
+---
+
+## 10. Authentication & Auth Store
+
+**File:** `src/store/auth.store.ts`
+
+### State
+
+| Field | Type | Persistence | Description |
+|---|---|---|---|
+| `user` | `UserType \| null` | `localStorage` (`auth-user`) | Authenticated user — survives page refresh |
+| `accessToken` | `string \| null` | In-memory only | Current JWT (cookie is authoritative) |
+| `featureFlags` | `Record<string, boolean>` | `localStorage` (`auth-feature-flags`) | Per-user feature flags |
+
+### Actions
+
+| Action | Description |
+|---|---|
+| `setAuth(user, token)` | Called after successful login. Persists user, stores token in cookie. |
+| `setAccessToken(token)` | Updates token after silent refresh. Does not update `user`. |
+| `setFeatureFlags(flags)` | Replaces feature flags map. Called after login. |
+| `logout()` | Clears all state, removes persisted data, clears cookie. |
+
+### Why persist `user` but not `accessToken`?
+
+The access token is persisted in a browser cookie by `cookieService.setToken()`. The Axios request interceptor reads the token directly from the cookie on every request. Persisting `user` to `localStorage` ensures the store is initialized synchronously before any component renders — no auth flicker on hard refresh.
+
+### Default feature flags (development)
+
+In development builds (`import.meta.env.DEV`), `errorPlayground` is enabled so developers can access `/admin/error-playground` without a backend feature-flag API. All other flags default to `false`.
+
+### Circular dependency prevention
+
+`auth.store.ts` must NOT import `authUrl` from `src/config/Define.ts`. The Axios instance reads `useAuthStore.getState()` internally. Importing `api` into the store would create a circular module dependency that breaks Vite HMR and the production bundle.
+
+### Token refresh flow
+
+```
+Request → 401 → isRefreshing?
+  YES → queue request → wait for refresh
+  NO  → set isRefreshing = true
+      → POST /users/refresh-token (withCredentials)
+        SUCCESS → processQueue(null, newToken) → retry queued requests
+        FAILURE → processQueue(error) → logout() → redirect /login
+```
+
+---
+
+## 11. API Layer
+
+### Axios instance factory
+
+**File:** `src/api/base/axios.ts`
+
+`createApiInstance(baseURL)` creates a configured Axios instance with five built-in cross-cutting concerns:
+
+#### 1. Bearer token injection
+Every outgoing request gets `Authorization: Bearer <token>` from the cookie.
+
+#### 2. Global loading counter
+Increments `useUiStore.activeApiRequestsCount` on request start, decrements on completion. Uses a counter (not boolean) so parallel requests work correctly.
+
+Per-request opt-out:
+```ts
+authUrl.get('/endpoint', { showGlobalLoader: false })
+```
+
+#### 3. Silent token refresh (401 handling)
+Queues concurrent 401 responses, fires a single refresh-token request, then retries all queued requests with the new token. On refresh failure, calls `logout()` and hard-navigates to `/login`.
+
+#### 4. Global error store integration
+Intercepts network failures and 5xx/403 errors, resolves an `ErrorCode`, and pushes it to the global error store. `GlobalErrorRenderer` handles display without hard navigation.
+
+Does **not** push to the error store for:
+- `401` — handled by silent refresh
+- `400` / `422` — validation errors, handled by form components
+- Cancelled requests (`axios.isCancel`)
+- Requests with `skipGlobalErrorHandler: true`
+
+Per-request opt-out:
+```ts
+authUrl.get('/endpoint', { skipGlobalErrorHandler: true })
+```
+
+#### 5. Backend error code mapping
+When a 4xx/5xx response contains `{ errorCode: "ORDER_NOT_FOUND" }` in the body, `resolveErrorCode()` maps it to the typed `ErrorCode` enum for granular error display.
+
+### API modules
+
+All API modules import from `src/config/Define.ts` which exports `authUrl` (the pre-configured Axios instance):
+
+```ts
+import { authUrl } from '@/config/Define';
+
+export const getProducts = () => authUrl.get('/products');
+export const createProduct = (data: ProductPayload) => authUrl.post('/products', data);
+```
+
+### API source switching
+
+**File:** `src/config/Define.ts`
+
+```ts
+// mock mode  → base URL: '/api/v1'  (Vite-proxied to json-server)
+// real mode  → base URL: environment.apiUrl  (production backend)
+const AUTH_BASE = environment.apiSource === 'mock'
+  ? '/api/v1'
+  : (environment.apiUrl || '/api/v1');
+
+export const authUrl = createApiInstance(AUTH_BASE);
+```
+
+Set `VITE_API_SOURCE=real` and `VITE_LOGIN_AUTH_URL=https://api.yourapp.com` in `.env.production` to switch to the real backend.
+
+---
+
+## 12. State Management
+
+All global state uses **Zustand**. UI-scoped state (language, theme) uses **React Context**. Local component state uses `useState`.
+
+### `useAuthStore` — `src/store/auth.store.ts`
+
+User, token, and feature flags. See [Section 10](#10-authentication--auth-store).
+
+### `useCartStore` — `src/store/cart.store.ts`
+
+Shopping cart state persisted to `localStorage`.
+
+| State | Type | Description |
+|---|---|---|
+| `items` | `CartItem[]` | Array of `{ product, quantity }` |
+
+| Action | Description |
+|---|---|
+| `addItem(product)` | Adds item or increments quantity |
+| `removeItem(productId)` | Removes item entirely |
+| `updateQuantity(productId, qty)` | Sets exact quantity |
+| `clearCart()` | Empties cart |
+
+Cart item count badge subscribes with a selector to avoid unnecessary re-renders:
+
+```ts
+const cartCount = useCartStore((s) =>
+  s.items.reduce((sum, i) => sum + i.quantity, 0)
+);
+```
+
+### `useWishlistStore` — `src/store/wishlist.store.ts`
+
+Wishlist state persisted to `localStorage`. Syncs with backend on login via `useWishlistSync` hook.
+
+### `useUiStore` — `src/store/ui.store.ts`
+
+UI-only state (loading counter):
+
+| State | Type | Description |
+|---|---|---|
+| `activeApiRequestsCount` | `number` | Semaphore for parallel requests |
+
+| Action | Description |
+|---|---|
+| `startLoading()` | Increments counter |
+| `stopLoading()` | Decrements counter (never below 0) |
+
+`GlobalLoader` shows when `activeApiRequestsCount > 0`.
+
+### `useInitStore` — `src/core/init/init.store.ts`
+
+Initialization state:
+
+| State | Type | Description |
+|---|---|---|
+| `isReady` | `boolean` | True after `AppInitializer` completes |
+| `dynamicLocales` | `Record<Lang, Locale>` | CMS-fetched locale bundles |
+| `errorConfig` | `ErrorBundle \| null` | CMS-fetched error config |
+
+### `useErrorStore` — `src/core/errors/error.store.ts`
+
+Global error state. See [Section 13](#13-global-error-system).
+
+---
+
+## 13. Global Error System
+
+A centralized, typed error pipeline that handles all user-visible errors consistently.
+
+### Error flow
+
+```
+Raw error (Axios / JS / Route guard)
+  │
+  ▼
+error.handler.ts    → resolves raw error to ErrorCode
+  │
+  ▼
+error.config.ts     → looks up ErrorConfig (display mode, icon, i18n keys)
+  │
+  ▼
+error.store.ts      → routes to: pageError | modalError | toastQueue | inlineError
+  │
+  ▼
+GlobalErrorRenderer.tsx → renders the appropriate UI
+```
+
+### Display modes
+
+| Mode | When to use | UI |
+|---|---|---|
+| `PAGE` | Critical errors replacing page content | Fullscreen overlay (z-9990) |
+| `INLINE` | Form or section-level errors | Small banner inside component |
+| `MODAL` | Action-required errors | Dialog overlay (z-9995) |
+| `TOAST` | Non-critical, transient notifications | Bottom-right stack (z-9999), auto-dismisses |
+
+### Error codes
+
+```ts
+type ErrorCode =
   | 'ORDER_NOT_FOUND'
   | 'PRODUCT_NOT_FOUND'
   | 'UNAUTHORIZED'
@@ -876,235 +837,50 @@ export type ErrorCode =
   | 'SESSION_EXPIRED'
   | 'RESOURCE_NOT_FOUND'
   | 'UNKNOWN_ERROR';
-
-export type ErrorDisplayMode = 'PAGE' | 'INLINE' | 'MODAL' | 'TOAST';
-
-export type ErrorConfig = {
-  displayMode: ErrorDisplayMode;
-  iconName: string;               // Lucide icon name
-  iconBgClass: string;            // Tailwind bg color
-  iconColorClass: string;         // Tailwind text/stroke color
-  titleKey: string;               // i18n key, e.g. 'errors.serverError.title'
-  descriptionKey: string;
-  primaryAction?: ErrorActionButton;
-  secondaryAction?: ErrorActionButton;
-};
-
-export type ActiveError = {
-  id: string;                     // crypto.randomUUID()
-  code: ErrorCode;
-  config: ErrorConfig;
-  displayMode: ErrorDisplayMode;
-  dismissible: boolean;
-  onRetry?: () => void;
-  timestamp: number;
-  duration: number;               // ms; non-zero only for TOAST
-};
-
-export type PushErrorOptions = {
-  displayModeOverride?: ErrorDisplayMode;
-  dismissible?: boolean;
-  onRetry?: () => void;
-  duration?: number;
-};
 ```
 
-### Config map (`src/core/errors/error.config.ts`)
+### Pushing an error
 
-Maps every `ErrorCode` to a full `ErrorConfig`:
-
-```typescript
-export const ERROR_CONFIG_MAP: Record<ErrorCode, ErrorConfig> = {
-  ORDER_NOT_FOUND: {
-    displayMode: 'PAGE',
-    iconName: 'PackageSearch',
-    titleKey: 'errors.orderNotFound.title',
-    // ...
-  },
-  SERVER_ERROR: {
-    displayMode: 'PAGE',
-    iconName: 'ServerCrash',
-    // ...
-  },
-  // ... 9 more entries
-};
-```
-
-### Pushing errors
-
-From anywhere in the app:
-
-```typescript
+```ts
 import { useErrorStore } from '@/core/errors/error.store';
 
-// Basic — uses the code's default display mode
-useErrorStore.getState().pushError('ORDER_NOT_FOUND');
+const { pushError } = useErrorStore();
 
-// Override display mode
-useErrorStore.getState().pushError('SERVER_ERROR', {
+// Basic push — uses defaults from error.config.ts
+pushError('NETWORK_ERROR');
+
+// With options
+pushError('PRODUCT_NOT_FOUND', {
   displayModeOverride: 'TOAST',
+  dismissible: true,
   onRetry: () => refetch(),
-});
-
-// With custom duration (TOAST only)
-useErrorStore.getState().pushError('VALIDATION_ERROR', {
-  displayModeOverride: 'TOAST',
-  duration: 6000,
+  duration: 5000, // ms, toast only
 });
 ```
 
-From guards/handlers:
+### Error config
 
-```typescript
-import { handleRouteError } from '@/core/errors/error.handler';
+Each `ErrorCode` has a static `ErrorConfig` in `src/core/errors/error.config.ts`:
 
-handleRouteError('FORBIDDEN', { displayModeOverride: 'TOAST' });
+```ts
+type ErrorConfig = {
+  code: ErrorCode;
+  displayMode: ErrorDisplayMode;  // default display mode
+  iconName: string;               // Lucide icon name
+  iconBgClass: string;            // Tailwind bg class
+  iconColorClass: string;         // Tailwind text class
+  titleKey: string;               // i18n key for title
+  descriptionKey: string;         // i18n key for description
+  primaryAction?: { label, variant, redirectTo };
+  secondaryAction?: { label, variant, redirectTo };
+};
 ```
 
-### Display modes
+### Error Boundary
 
-| Mode | Behavior | Z-index | Dismissed by |
-|---|---|---|---|
-| `PAGE` | Fullscreen overlay — replaces all content | `z-[9990]` | `clearPageError()` or primary action |
-| `MODAL` | Dialog overlay with backdrop | `z-[9995]` | Escape key, dismiss button, or primary action |
-| `TOAST` | Bottom-right stack — auto-dismisses | `z-[9999]` | `removeToast(id)` after `duration` ms |
-| `INLINE` | Component-level — not rendered by GlobalErrorRenderer | — | `clearInlineError()` |
-
-**Why separate slots (not a single queue)?** Toasts can coexist — a queue makes sense. Only one PAGE or MODAL error should be active at a time. A new PAGE error always replaces the previous one (the new error is always more relevant).
-
-### `GlobalErrorRenderer`
-
-Mounted once in `App.tsx`. Uses `createPortal` to render into `document.body` above all z-layers:
-
-```tsx
-// App.tsx
-<GlobalErrorRenderer />
-```
-
-Internal structure:
-
-```
-GlobalErrorRenderer
-  ├── PageErrorOverlay   — if pageError ≠ null
-  ├── ModalErrorDialog   — if modalError ≠ null
-  └── ToastContainer     — always mounted; renders ToastItem for each in toastQueue
-```
-
-Toast auto-dismiss: each `ToastItem` runs `useEffect(() => { setTimeout(removeToast, duration) }, [])`.
-
-Modal: Escape key listener + focus trap (primary action button auto-focuses on mount).
-
-### `error.handler.ts`
-
-```typescript
-// Resolve an Axios error to an ErrorCode
-resolveErrorCode(rawError: unknown, normalized: NormalizedError): ErrorCode
-
-// Push to error store (used by Axios interceptor)
-handleApiError(rawError, normalized, options?: PushErrorOptions): void
-
-// Convenience for guards (skips Axios-specific resolution)
-handleRouteError(code: ErrorCode, options?: PushErrorOptions): void
-```
-
-`resolveErrorCode` priority:
-1. `response.data.errorCode` — backend-provided string code (maps via `BACKEND_ERROR_CODE_MAP`)
-2. HTTP status: `401 → SESSION_EXPIRED`, `403 → FORBIDDEN`, `404 → RESOURCE_NOT_FOUND`, `5xx → SERVER_ERROR`
-3. Normalized type: `network → NETWORK_ERROR`
-4. Fallback: `UNKNOWN_ERROR`
-
-### INLINE errors
-
-INLINE errors are NOT rendered by `GlobalErrorRenderer`. The component must subscribe directly:
-
-```tsx
-const inlineError = useErrorStore((s) => s.inlineError);
-
-if (inlineError) {
-  return <AlertBanner message={t(inlineError.config.titleKey)} />;
-}
-```
-
----
-
-## 13. CMS Content Service
-
-### Overview
-
-`useContent()` in `src/core/content/content.service.ts` abstracts content retrieval. The mode is controlled by `VITE_CONTENT_MODE` at build time.
-
-```typescript
-const { getContent, prefetch, isLoading, mode } = useContent();
-
-return <h1>{getContent('home.hero.title')}</h1>;
-```
-
-### Modes
-
-| Mode | `VITE_CONTENT_MODE` | Behavior |
-|---|---|---|
-| LOCAL | `LOCAL` | Synchronous — delegates to `t(key, fallback)` from `useI18n()` |
-| CMS | `CMS` | Async — fetches from `GET ${VITE_CMS_ENDPOINT}?key=<key>&lang=<lang>` |
-
-### CMS mode detail
-
-- **Cache hit** (in-memory `Map<"key:lang", string>`): returns immediately, no fetch.
-- **Cache miss**: returns the i18n fallback immediately (no loading flash) + triggers a background fetch.
-- After fetch resolves: updates cache, triggers re-render with CMS content.
-- **Parallel fetches**: a `pendingFetches: Set<string>` prevents duplicate in-flight requests for the same key.
-- **Fetch failure**: silently keeps the i18n fallback (graceful degradation).
-- **Cache TTL**: none — cache is session-scoped (resets on page reload).
-
-### `prefetch`
-
-```typescript
-const { prefetch } = useContent();
-
-// Warm up the cache for a key before the user navigates to that page
-prefetch('home.hero.title');
-```
-
-### isLoading
-
-`isLoading` is `true` when at least one CMS fetch is in-flight. Use sparingly — components should rely on the i18n fallback during loading rather than showing a spinner.
-
----
-
-## 14. Error Boundary
-
-`src/core/errors/ErrorBoundary.tsx` is a React class component that catches render-time errors (`componentDidCatch`) and prevents white-screen crashes.
-
-### Usage
-
-```tsx
-// Wrapping a layout — auto-resets on route change
-<ErrorBoundary resetKey={location.pathname} onError={(err, info) => sentry.capture(err, info)}>
-  <UserLayout />
-</ErrorBoundary>
-
-// Custom fallback
-<ErrorBoundary fallback={<MyCustomFallback />}>
-  <RiskyComponent />
-</ErrorBoundary>
-
-// Fallback as render function (receives error and reset)
-<ErrorBoundary fallback={(error, reset) => <button onClick={reset}>Retry: {error.message}</button>}>
-  <RiskyComponent />
-</ErrorBoundary>
-```
-
-### Props
-
-| Prop | Type | Default | Description |
-|---|---|---|---|
-| `children` | `ReactNode` | — | Content to protect. |
-| `resetKey` | `string \| number` | — | When this value changes, the boundary resets and re-renders children. Use `location.pathname`. |
-| `fallback` | `ReactNode \| ((error, reset) => ReactNode)` | Default UI | Custom error fallback. |
-| `onError` | `(error, info) => void` | — | Callback for Sentry/analytics. |
-
-### Auto-reset on route change
-
-`AppRouter.tsx` passes `resetKey={location.pathname}` so navigating to a different page always clears the error state:
+`src/core/errors/ErrorBoundary.tsx` is a React class component that catches render-time JavaScript errors. Used at:
+- Top of `App.tsx` — catches provider errors
+- Wrapping `AdminLayout` and `UserLayout` in `AppRouter.tsx` — auto-resets on route change
 
 ```tsx
 <ErrorBoundary resetKey={location.pathname}>
@@ -1112,356 +888,508 @@ prefetch('home.hero.title');
 </ErrorBoundary>
 ```
 
-### Default fallback
+### Error Playground
 
-Shows a centered card with error message. In DEV mode, also renders the full stack trace in a `<pre>` block for debugging. In production, only user-friendly copy is shown.
+`/admin/error-playground` is a developer tool page for testing all error display modes interactively. It is protected by the `errorPlayground` feature flag and only accessible to `ADMIN` role users with the flag enabled.
 
 ---
 
-## 15. Feature Flags
+## 14. App Initialization Gate
 
-Feature flags gate experimental features at the route, component, and code level.
+**Files:** `src/core/init/AppInitializer.tsx`, `src/core/init/init.service.ts`, `src/core/init/init.store.ts`
+
+### What it does
+
+Blocks the router from mounting until two bundles are fetched in parallel:
+
+1. **Locale bundle** — translation strings for the user's stored language
+2. **Error config bundle** — server-overridable error display configuration
+
+### Initialization flow
+
+```
+1. Read stored language from localStorage
+2. Fetch locale bundle  ─┐ parallel (Promise.all)
+3. Fetch error config  ──┘
+4. Store both in useInitStore
+5. setReady() → AppRouter mounts
+```
+
+### Guarantees
+
+- The router does NOT mount until `isReady` is `true`
+- All page-level API calls are naturally prevented until the router exists
+- Fetch failures always fall back to static TypeScript bundles — the app always starts
+
+### Loading state
+
+While initializing, `AppInitializer` renders `<InitSkeleton />` — a fullscreen animated skeleton that matches the app's layout structure.
+
+### Language switching after init
+
+When the user switches language via `setLang()`, `i18n.context.tsx` calls `fetchLocaleBundle(newLang)` and updates the store. No page reload is required.
+
+---
+
+## 15. CMS Content Service
+
+**File:** `src/core/init/init.service.ts`
+
+Controlled by `VITE_CONTENT_SOURCE`:
+
+| Value | URL pattern | Network tab signal |
+|---|---|---|
+| `local` | `/content/default-*` | `default-ar` |
+| `backend` | `/content/be-default-*` | `be-default-ar` |
+
+This distinction is visible in the browser's Network tab — the `be-` prefix is the debug signal that backend mode is active.
+
+### Fetch with timeout + fallback
+
+The service uses a 5-second timeout per fetch and falls back silently to the static TypeScript bundle on any failure:
+
+```
+Network fetch (5s timeout)
+  → 200 OK → parse JSON → store in useInitStore
+  → HTTP error / timeout / network error → use static fallback
+```
+
+The JSON response can be either a raw object or a FreeAPI envelope `{ data: {...} }` — both are handled.
+
+### Serving the mock bundles
+
+`json-server` serves the TypeScript locale files as JSON when Vite proxies `/content/*`. The mock server converts the TypeScript exports to JSON fixtures automatically.
+
+---
+
+## 16. Feature Flags
+
+Feature flags enable progressive rollout of features per user without deploying new code.
 
 ### Storage
 
-```typescript
-// auth.store.ts
-featureFlags: Record<string, boolean>
-// Persisted to localStorage 'auth-feature-flags'
+Flags are stored as `Record<string, boolean>` in:
+- `useAuthStore.featureFlags` (in-memory Zustand state)
+- `localStorage` under `auth-feature-flags` (survives refresh)
+
+### Lifecycle
+
+1. User logs in
+2. Backend returns user-specific flags (or a separate `/feature-flags` API call)
+3. `setFeatureFlags(flags)` is called
+4. `FeatureGuard`, `WhitelistGuard`, and `DeepLinkGuard` read flags from the store
+5. `logout()` clears flags back to defaults
+
+### Default flags (development)
+
+```ts
+// In auth.store.ts — defaultFeatureFlags() in DEV mode:
+{
+  errorPlayground: true,   // enables /admin/error-playground
+  betaReports: false,
+  analyticsV2: false,
+  newCheckout: false,
+}
 ```
 
-### Reading a flag
+In production, all flags default to `{}` (empty) — features are disabled unless the backend grants them.
 
-```typescript
-const flags = useAuthStore((s) => s.featureFlags);
-if (flags.errorPlayground) { /* ... */ }
-```
-
-### Setting flags
-
-```typescript
-// After login (from API response)
-useAuthStore.getState().setFeatureFlags({ errorPlayground: true, newCheckout: false });
-
-// Merges — does not replace
-useAuthStore.getState().setFeatureFlags({ newCheckout: true });
-// result: { errorPlayground: true, newCheckout: true }
-```
-
-### DEV defaults
-
-In DEV mode (`import.meta.env.DEV`), the `defaultFeatureFlags()` function returns:
-
-```typescript
-{ errorPlayground: true }
-```
-
-This means developers can access `/admin/error-playground` without a backend that sets flags. In production, `defaultFeatureFlags()` returns `{}`.
-
-### Route-level gating
-
-Use `FeatureGuard` in the route tree (see [Section 11](#11-routing--guards)).
-
-### Component-level gating
+### Using feature flags in components
 
 ```tsx
-const { errorPlayground } = useAuthStore((s) => s.featureFlags);
+const { featureFlags } = useAuthStore();
 
-return errorPlayground ? <ErrorPlaygroundLink /> : null;
+if (featureFlags.analyticsV2) {
+  return <NewAnalyticsDashboard />;
+}
 ```
 
-### Error Playground — live flag toggles
-
-`ErrorPlaygroundPage.tsx` renders a toggle panel for every flag in the current `featureFlags` object. Changes are immediately written to the store via `setFeatureFlags()` and are reflected by all guards in real time — useful for testing guard behavior without backend changes.
-
----
-
-## 16. Mobile Navigation
-
-`UserLayout` supports two mobile nav styles, toggled by the `PanelLeft` / `AlignJustify` icon button in the header. The preference is persisted in `localStorage` under `mobileNavStyle`.
-
-### Dropdown (default)
-
-A panel slides down below the sticky header when the hamburger is tapped. Compact; keeps the page partially visible behind the menu.
-
-```
-┌─────────────── Header ───────────────┐
-│ Logo    [🌙] [🌐] [🛒] [👤] [⊞] [☰] │
-├──────────────────────────────────────┤
-│  Home                                │  ← dropdown panel
-│  Products                            │
-│  Orders                              │
-│  Profile                             │
-│  Sign out                            │
-└──────────────────────────────────────┘
-```
-
-### Sidebar
-
-A full-height drawer slides from the leading edge (left in LTR, right in RTL) with a semi-transparent backdrop. Better for apps with many nav items or when a more "app-like" feel is desired.
-
-```
-┌──────────┬─────────────── Header ────┐
-│  Logo  ✕ │ [🌙] [🌐] [🛒] [👤] [☰] │
-├──────────┤                           │
-│  Home    │   Page content            │
-│  Products│                           │
-│  Orders  │                           │
-│  Profile │                           │
-├──────────┤                           │
-│  Avatar  │                           │
-│  Sign out│                           │
-└──────────┴───────────────────────────┘
-```
-
-**Toggle button:** The `PanelLeft` icon (→ sidebar mode) / `AlignJustify` icon (→ dropdown mode) switches between styles without opening/closing the menu.
-
----
-
-## 17. Global Loader
-
-`GlobalLoader` is a fullscreen overlay mounted once in `App.tsx` above the router. It is invisible (`opacity-0`) when no API request is in-flight and fades in (`opacity-100`) when one or more requests are active.
-
-### How it works
-
-```
-Axios request starts
-  → axios.ts interceptor increments ui.store.activeApiRequestsCount
-  → GlobalLoader re-renders: isLoading = (count > 0) = true → opacity-100
-
-Axios request settles (success or error)
-  → interceptor decrements count
-  → if count reaches 0: GlobalLoader fades out
-```
-
-### Opting out
-
-For requests that already have their own skeleton/loading state:
-
-```typescript
-api.get('/products', { showGlobalLoader: false });
-```
-
-### Suspense fallback
-
-`GlobalLoader` also accepts a `show` prop for use as a `<Suspense>` fallback during lazy chunk loading and during `DeepLinkGuard` async validation:
+### Route-level feature gating
 
 ```tsx
-<Suspense fallback={<GlobalLoader show />}>
-  <LazyPage />
-</Suspense>
+// In AppRouter.tsx — only users with errorPlayground flag can access this route:
+<Route element={<FeatureGuard featureFlag="errorPlayground" />}>
+  <Route path="/admin/error-playground" element={<Page component={ErrorPlaygroundPage} />} />
+</Route>
 ```
 
 ---
 
-## 18. Type Definitions
+## 17. Layouts
 
-### `auth.types.ts`
+### `AuthLayout` — `src/layouts/AuthLayout.tsx`
 
-```typescript
-type Role = 'CUSTOMER' | 'ADMIN' | 'MANAGER';
+Centered card layout for login and register pages. No navigation. Full-viewport, vertically and horizontally centered.
 
-type UserType = {
-  _id: string;
-  username: string;
-  email: string;
-  role: Role;
-  permissions?: string[];   // optional fine-grained permissions
-};
+### `UserLayout` — `src/layouts/UserLayout.tsx`
+
+Storefront shell. Structure:
+
+```
+┌─────────────────────────────────────────────────────────┐
+│  Logo  Home  Products  Orders  Profile  🤍(n)  🛒(n)  👤 │  ← Desktop header
+│  Logo                                  🤍(n)  🛒(n)   ☰  │  ← Mobile header
+├─────────────────────────────────────────────────────────┤
+│                  <Outlet /> — page content               │
+├─────────────────────────────────────────────────────────┤
+│          © 2025 ShopHub. All rights reserved.            │  ← Footer (sticky bottom)
+└─────────────────────────────────────────────────────────┘
 ```
 
-### `product.types.ts`
+**Desktop:** Horizontal nav links + theme toggle + language toggle + user avatar + logout button.
 
-```typescript
-type Product = {
-  _id: string;
-  name: string;
-  description: string;
-  price: number;
-  stock: number;
-  category?: ProductCategory;
-  mainImage?: { url: string; publicId: string };
-  images?: Array<{ url: string; publicId: string }>;
-  createdAt: string;
-};
+**Mobile:** Logo + wishlist badge + cart badge + hamburger. Tapping the hamburger slides in a full-height drawer (RTL-aware with `start-0`) containing all nav links, theme toggle, language toggle, user info, and sign-out.
 
-type PaginatedData<T> = {
-  data: T[];
-  page: number;
-  limit: number;
-  totalItems: number;
-  totalPages: number;
-  hasNextPage: boolean;
-  hasPrevPage: boolean;
-};
+Footer is sticky to the bottom of the viewport on short pages via `min-h-screen flex flex-col` with `flex-1` on main.
+
+### `AdminLayout` — `src/layouts/AdminLayout.tsx`
+
+Admin panel shell. Structure:
+
+```
+┌──────────────────────────────────────────────────────┐
+│  Logo  ShopHub Admin                           [user] │  ← Top bar
+├──────────────────────────────────────────────────────┤
+│ Sidebar  │                                           │
+│ Dashboard│           <Outlet />                      │
+│ Products │           (page content)                  │
+│ Categories│                                          │
+│ Orders   │                                           │
+│          │                                           │
+└──────────────────────────────────────────────────────┘
 ```
 
-### `cart.types.ts`
+Sidebar contains all admin navigation links. Mobile version collapses to a hamburger with a slide-in drawer.
 
-```typescript
-type CartItem = {
-  productId: string;
-  name: string;
-  price: number;
-  quantity: number;
-  image?: string;
-};
+---
+
+## 18. Admin Panel Pages
+
+All admin routes are gated behind `ProtectedRoute → WhitelistGuard → RoleGuard(ADMIN|MANAGER)`.
+
+### Dashboard — `/admin/dashboard`
+
+**File:** `src/pages/admin/DashboardPage.tsx`
+
+Overview metrics (total products, categories, orders, revenue) displayed as stat cards. Quick-action buttons link to the main admin sections. All text is fully translated via `useI18n()`.
+
+### Products List — `/admin/products`
+
+**File:** `src/pages/admin/ProductsListPage.tsx`
+
+Paginated product table with:
+- Search (debounced, client-side)
+- Category filter dropdown
+- Sort by name/price/stock (ascending/descending)
+- Stock status badges (In Stock, Low Stock, Out of Stock)
+- Inline actions: Edit, Delete (with confirmation modal)
+- Pagination showing `X–Y of Z` with translated interpolation
+
+### Create Product — `/admin/products/create`
+
+**File:** `src/pages/admin/CreateProductPage.tsx`
+
+Form for creating a new product. Validates with Zod schema (`src/schemas/product.schema.ts`). Fields: name, description, category, price, stock, image URL.
+
+### Edit Product — `/admin/products/:id/edit`
+
+**File:** `src/pages/admin/EditProductPage.tsx`
+
+Pre-populated edit form. Loads product by ID from the API, prefills form fields.
+
+### Categories — `/admin/categories`
+
+**File:** `src/pages/admin/CategoriesPage.tsx`
+
+Category table with inline create form and delete confirmation modal. Delete modal warns that products in the category will lose their category assignment. Restricted to `ADMIN` role (MANAGER cannot access).
+
+### Orders — `/admin/orders`
+
+**File:** `src/pages/admin/AdminOrdersPage.tsx`
+
+Order management table with:
+- Status filter (All / Pending / Delivered / Cancelled)
+- Status badges with translated labels
+- Order detail modal with line-item breakdown, subtotal, and payment status
+- Pagination
+
+Status badge labels use `labelKey` references into the locale, translated at render time:
+```ts
+PENDING:   { labelKey: 'admin.orders.status.pending', ... }
+DELIVERED: { labelKey: 'admin.orders.status.delivered', ... }
+CANCELLED: { labelKey: 'admin.orders.status.cancelled', ... }
+```
+
+### Error Playground — `/admin/error-playground`
+
+**File:** `src/pages/admin/ErrorPlaygroundPage.tsx`
+
+Developer tool for testing all error display modes. Gate: `ADMIN` role + `errorPlayground` feature flag. Allows triggering PAGE, MODAL, TOAST, and INLINE error scenarios.
+
+### Whitelist rules
+
+```ts
+// src/config/whitelist.config.ts
+'/admin/error-playground': { allowedRoles: ['ADMIN'], requiredFeatureFlags: ['errorPlayground'] },
+'/admin/dashboard':        { allowedRoles: ['ADMIN', 'MANAGER'] },
+'/admin/products':         { allowedRoles: ['ADMIN', 'MANAGER'], matchPrefix: true },
+'/admin/categories':       { allowedRoles: ['ADMIN'] },
+'/admin/orders':           { allowedRoles: ['ADMIN', 'MANAGER'] },
 ```
 
 ---
 
-## 19. Utilities
+## 19. User Storefront Pages
 
-### `utils/slug.ts` — `extractProductId(slugId)`
+### Home — `/`
 
-Parses the combined `<slug>-<ObjectId>` URL param and returns the 24-character ObjectId for API calls.
+**File:** `src/pages/user/HomePage.tsx`
 
-```typescript
-extractProductId('nike-air-max-270-64c8f1234567890123456789')
-// → '64c8f1234567890123456789'
+Hero section, featured products, category highlights. Public (no auth required).
 
-extractProductId('64c8f1234567890123456789') // legacy pure-ID URL
-// → '64c8f1234567890123456789'
-```
+### Products — `/products`
 
-### `utils/normalizeApiError.ts`
+**File:** `src/pages/user/ProductsPage.tsx`
 
-Extracts a human-readable error message from an Axios error object, falling back to a default string. Also used by `error.handler.ts` as input for `resolveErrorCode()`.
+Product catalog with search, category filter, and sort. Paginated grid. Public.
 
-### `utils/cookie.service.ts`
+### Product Detail — `/products/:slugId`
 
-Thin wrapper around `js-cookie` for managing the auth refresh token cookie:
+**File:** `src/pages/user/ProductDetailPage.tsx`
 
-```typescript
-cookieService.getToken()     // → string | undefined
-cookieService.setToken(val)  // sets cookie with Secure + SameSite=Strict
-cookieService.removeToken()  // removes the cookie
-```
+Full product details with image, description, price, and add-to-cart / add-to-wishlist actions. Public.
 
-### `utils/prefetch.ts`
+### Cart — `/cart`
 
-Pre-fetches lazy chunks before the user navigates to improve perceived performance:
+**File:** `src/pages/user/CartPage.tsx`
 
-```typescript
-// Called on login for ADMIN/MANAGER users so admin dashboard loads instantly
-prefetchAdminDashboard(); // triggers import('@/pages/admin/ProductsListPage')
-```
+Cart contents with quantity controls, item removal, subtotal, and proceed-to-checkout CTA. Public (cart state is local Zustand store).
 
-### `hooks/useDebounce.ts`
+### Wishlist — `/wishlist`
 
-```typescript
-const debouncedValue = useDebounce(value, 400); // delays by 400ms
-```
+**File:** `src/pages/user/WishlistPage.tsx`
 
-Used in search inputs to avoid sending a request on every keystroke.
+Wishlist items with add-to-cart and remove actions. Syncs to backend when the user logs in via `useWishlistSync` hook.
 
-### `hooks/useCartMerge.ts`
+### Checkout — `/checkout` _(protected)_
 
-Called after successful login. Sends the localStorage cart items to the server cart endpoint, then clears the local cart. Runs once per session.
+**File:** `src/pages/user/CheckoutPage.tsx`
 
-### `hooks/useWishlistSync.ts`
+Multi-field checkout form validated with Zod (`src/schemas/checkout.schema.ts`). Collects shipping address and payment method. Submits order to API. Simulates payment on mock backend.
 
-Called after successful login. Reads the local wishlist from the store and pushes each item to the server wishlist API.
+### Orders — `/orders` _(protected)_
+
+**File:** `src/pages/user/OrdersPage.tsx`
+
+User's order history. Supports both list view (`/orders`) and detail view (`/orders/:id`). The detail view is gated by `DeepLinkGuard` to prevent URL guessing.
+
+### Profile — `/profile` _(protected)_
+
+**File:** `src/pages/user/ProfilePage.tsx`
+
+User account information display and edit.
 
 ---
 
-## 20. Configuration Files
+## 20. Shared Components
 
-### `tailwind.config.js`
+### `GlobalLoader` — `src/components/common/GlobalLoader.tsx`
 
-```javascript
-darkMode: 'class',           // Toggle by adding 'dark' to <html>
-colors: {
-  gray: { 750: '#2d3748' }   // Custom shade for dark sidebar rows
-},
-plugins: [animate]           // tailwindcss-animate for transitions
+Fullscreen spinner overlay driven by `useUiStore.activeApiRequestsCount`. Mounted above the router (z-9999). Shows automatically for every Axios request that does not opt out with `showGlobalLoader: false`.
+
+### `InitSkeleton` — `src/components/ui/InitSkeleton.tsx`
+
+Fullscreen animated skeleton shown while `AppInitializer` waits for locale and error config bundles. Matches the app's layout structure to minimize perceived layout shift.
+
+### `DeleteModal` — `src/components/admin/DeleteModal.tsx`
+
+Reusable confirmation modal for delete actions in admin pages. Accepts `title`, `message`, `onConfirm`, `onCancel`, and `isDeleting` props.
+
+### `FormInputControl` — `src/components/form/input/FormInputControl.tsx`
+
+`react-hook-form`-connected input component. Renders label, input field, and validation error message. Accepts the full `UseFormRegisterReturn` from RHF.
+
+### `ErrorBoundary` — `src/core/errors/ErrorBoundary.tsx`
+
+React class component error boundary. Accepts `resetKey` prop to reset on route change.
+
+### `GlobalErrorRenderer` — `src/core/errors/GlobalErrorRenderer.tsx`
+
+Subscribes to `useErrorStore` and renders:
+- `pageError` → fullscreen PAGE overlay (z-9990)
+- `modalError` → dialog overlay (z-9995)
+- `toastQueue` → bottom-right toast stack (z-9999), auto-dismisses per `duration`
+- INLINE errors are not rendered here — consumed directly by components
+
+---
+
+## 21. Form Validation
+
+All forms use `react-hook-form` + `zod` via `@hookform/resolvers`.
+
+### Pattern
+
+```tsx
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { loginSchema, type LoginFormData } from '@/schemas/login.schema';
+
+const { register, handleSubmit, formState: { errors } } = useForm<LoginFormData>({
+  resolver: zodResolver(loginSchema),
+});
 ```
 
-### `tsconfig.app.json`
+### Schemas
 
-Key settings:
-- `"strict": true` — all strict TypeScript checks enabled
-- `"erasableSyntaxOnly": true` — disallows `enum`, `namespace` (use const objects / string literal unions)
-- `"paths": { "@/*": ["./src/*"] }` — `@/` alias for `src/`
-- `"moduleResolution": "bundler"` — Vite-compatible resolution
-
-### `vite.config.ts`
-
-Uses `vite-tsconfig-paths` plugin so `@/` path aliases work without Vite-specific config duplication.
-
-### `.env` files
-
-| File | Purpose |
+| File | Form |
 |---|---|
-| `.env` | Shared: Firebase config, API base URL |
-| `.env.local` | DEV override: `VITE_CONTENT_MODE=LOCAL` |
-| `.env.production` | Production: `VITE_CONTENT_MODE=CMS`, `VITE_CMS_ENDPOINT=<url>` |
+| `src/schemas/login.schema.ts` | Login form (email, password) |
+| `src/schemas/register.schema.ts` | Registration form (username, email, password, confirm) |
+| `src/schemas/checkout.schema.ts` | Checkout form (address, payment) |
+| `src/schemas/product.schema.ts` | Admin create/edit product form |
 
-### `.hintrc`
+### Validation errors
 
-Webhint configuration for browser compatibility and accessibility linting.
+Zod validation errors surface through `formState.errors` and are rendered by `FormInputControl` inline under each field. The global error system is NOT used for form validation — 400/422 API responses are handled by form components directly.
 
 ---
 
-## 21. Development Guidelines
+## 22. Mock Server
+
+**File:** `mock-server/server.cjs`
+
+The mock server uses `json-server` to simulate the REST API. It provides:
+
+- All product, category, order, user, cart, and wishlist endpoints
+- Authentication endpoints (`/users/login`, `/users/refresh-token`, `/users/register`)
+- Content bundle endpoints (`/content/default-en`, `/content/default-ar`, `/content/default-error`)
+
+### Starting the mock server
+
+```bash
+npm run dev:mock
+```
+
+Or together with Vite:
+
+```bash
+npm run dev:all
+```
+
+### Vite proxy configuration
+
+`vite.config.ts` forwards requests to the mock server:
+
+```ts
+server: {
+  proxy: {
+    '/content': { target: 'http://localhost:3001', changeOrigin: true },
+    // /api/v1 only proxied when VITE_API_SOURCE=mock:
+    '/api/v1': { target: 'http://localhost:3001', changeOrigin: true },
+  },
+},
+```
+
+This means API calls from the browser appear as `/api/v1/...` in the Network tab — identical to production — and the mock server intercepts them transparently.
+
+---
+
+## 23. Build & Bundle Splitting
+
+### Production build
+
+```bash
+npm run build
+```
+
+TypeScript compiles first (`tsc -b`), then Vite builds and tree-shakes the output.
+
+### Manual chunk splitting
+
+`vite.config.ts` configures Rollup manual chunks to separate heavy vendor packages into individually cacheable files:
+
+| Chunk | Contents | Cache benefit |
+|---|---|---|
+| `vendor-firebase` | `firebase/*` | Only downloaded when user visits Login |
+| `vendor-react` | `react`, `react-dom`, `react-router`, `scheduler` | Very stable; long cache lifetime |
+| `vendor-icons` | `lucide-react` | Tree-shaken per page at import time |
+| `vendor-utils` | `zustand`, `axios`, `zod`, `react-hook-form`, `js-cookie` | Stable utility layer |
+| `vendor` | Everything else from `node_modules` | |
+
+### Chunk size warning limit
+
+`chunkSizeWarningLimit: 600` (KB) suppresses warnings for the icon vendor chunk which is large but heavily tree-shaken at runtime.
+
+### Code splitting impact
+
+Every page is `React.lazy()` — each page's JavaScript is only downloaded on first visit. Combined with vendor chunk splitting, the initial load is approximately 70% smaller than a non-split build.
+
+---
+
+## 24. Development Guidelines
 
 ### Adding a new page
 
-1. Create the component in `src/pages/<module>/MyPage.tsx`.
-2. Add a `React.lazy()` import in `AppRouter.tsx`.
-3. Add the route inside the appropriate layout group as `<Page component={MyPage} />`.
-4. If auth is required, wrap with `<ProtectedRoute>`.
-5. If role-restricted, add a `WhitelistRule` entry in `whitelist.config.ts`.
-6. Add any new translation keys to `en.ts` → TypeScript will enforce `ar.ts` parity.
+1. Create the component in `src/pages/user/` or `src/pages/admin/`
+2. Add a `React.lazy()` import and a `<Route>` entry in `src/routes/AppRouter.tsx`
+3. Wrap with appropriate guards if the page is protected
+4. Add translation keys to `default-en.ts` → `default-ar.ts` → `en.ts` → `ar.ts`
 
-### Adding a new API call
+### Adding a new admin route with access control
 
-1. Add the function to the relevant `src/api/*.api.ts` file.
-2. The shared Axios instance handles auth headers, GlobalLoader, and global error handling automatically.
-3. If the endpoint already has a skeleton, pass `showGlobalLoader: false`.
-4. For endpoints where you want to handle errors locally, pass `skipGlobalErrorHandler: true`.
-
-### Adding a new translation key
-
-1. Add to `src/i18n/locales/en.ts` with an English value.
-2. TypeScript will error in `ar.ts` until you add the Arabic equivalent.
-3. Use `t('your.key')` in any component that calls `useI18n()`.
-
-### Adding a new error code
-
-1. Add the string literal to the `ErrorCode` union in `error.types.ts`.
-2. Add an `ErrorConfig` entry to `ERROR_CONFIG_MAP` in `error.config.ts`.
-3. Add `errors.<camelCase>.title` and `errors.<camelCase>.description` to `en.ts` and `ar.ts`.
-4. Push the error anywhere with `useErrorStore.getState().pushError('YOUR_NEW_CODE')`.
+1. Add the route to `AppRouter.tsx` inside the admin section
+2. Add a `WhitelistRule` to `src/config/whitelist.config.ts`:
+   ```ts
+   '/admin/reports': {
+     allowedRoles: ['ADMIN'],
+     requiredFeatureFlags: ['betaReports'],
+   },
+   ```
+3. No changes needed in `WhitelistGuard.tsx` — it reads the config automatically
 
 ### Adding a new feature flag
 
-1. Add the flag name to the `defaultFeatureFlags()` return value in `auth.store.ts` if it should be enabled in DEV by default.
-2. Gate the route with `<FeatureGuard featureFlag="yourFlag">` in `AppRouter.tsx`.
-3. Gate UI elements with `const flags = useAuthStore((s) => s.featureFlags); if (flags.yourFlag) { ... }`.
-4. The Error Playground will automatically show a toggle for the new flag.
+1. Add the flag to `defaultFeatureFlags()` in `auth.store.ts` (set to `true` in DEV, `false` in prod)
+2. Use it in a component: `featureFlags.yourFlagName`
+3. Or gate a route: `<FeatureGuard featureFlag="yourFlagName" />`
+4. Backend supplies per-user values at login via `setFeatureFlags()`
 
-### Naming conventions
+### Adding a new error code
 
-| Thing | Convention | Example |
-|---|---|---|
-| Components | PascalCase | `ProductCard.tsx` |
-| Hooks | camelCase + `use` prefix | `useDebounce.ts` |
-| Stores | camelCase + `.store.ts` | `cart.store.ts` |
-| API modules | camelCase + `.api.ts` | `products.api.ts` |
-| Types | camelCase + `.types.ts` | `product.types.ts` |
-| Schemas | camelCase + `.schema.ts` | `login.schema.ts` |
-| i18n keys | nested dot-notation | `admin.products.newProduct` |
-| Error codes | SCREAMING_SNAKE_CASE | `ORDER_NOT_FOUND` |
-| Feature flags | camelCase | `errorPlayground` |
+1. Add the code to the `ErrorCode` union in `src/core/errors/error.types.ts`
+2. Add a matching `ErrorConfig` entry in `src/core/errors/error.config.ts`
+3. Add i18n keys for `titleKey` and `descriptionKey` in both locale files
+4. Push the error from any component or interceptor via `pushError('YOUR_CODE')`
 
-### Do not
+### Adding a new translation key
 
-- Store access tokens in `localStorage` — keep them in memory (auth store).
-- Commit `.env` files with real credentials — use `.env.example` for documentation.
-- Import from `src/` using relative paths — always use `@/` alias.
-- Use `any` — prefer `unknown` or properly typed generics.
-- Use `enum` — use string literal union types (TypeScript `erasableSyntaxOnly` constraint).
-- Add hardcoded English strings to UI components — use `t('key')` instead.
-- Call `window.location.assign()` for error navigation — push to the error store instead.
-- Import `error.store` from inside `auth.store` or vice versa — keep store dependencies one-directional.
+1. Add to `src/i18n/locales/default-en.ts` — TypeScript will flag missing keys in other files
+2. Add Arabic translation to `src/i18n/locales/default-ar.ts`
+3. Mirror in `src/i18n/locales/en.ts` and `src/i18n/locales/ar.ts` (static bundles)
+
+### Environment variable naming
+
+All client-accessible environment variables must be prefixed with `VITE_`. Variables without this prefix are never exposed to the browser. Server-only secrets (database URLs, signing keys) must never have the `VITE_` prefix.
+
+### Avoiding circular dependencies
+
+- `auth.store.ts` must NOT import from `api/` or `config/Define.ts`
+- `api/base/axios.ts` imports from `auth.store.ts` (via `getState()`) — this is the intended one-way dependency
+- If a utility needs both auth state and API access, pass it as a parameter rather than importing both
+
+### i18n best practices
+
+- Never hardcode user-visible strings — always use `translate('key')`
+- For strings with dynamic values, use `.replace('{{placeholder}}', value)` after `translate()`
+- Use descriptive key names: `admin.products.showing` not `productsPage.str3`
+- Group keys by page/feature, not by component
+
+### TypeScript strict mode
+
+The project runs with `erasableSyntaxOnly: true` in tsconfig. This means:
+- Use `type` unions instead of `enum` (e.g. `type ErrorCode = 'FOO' | 'BAR'`)
+- Use `type` imports where possible (`import type { Foo }`)
+
+---
+
+*Last updated: 2026-03-19*

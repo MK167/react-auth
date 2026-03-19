@@ -12,12 +12,14 @@ import { useNavigate } from 'react-router-dom';
 import { User, Mail, Shield, LogOut, ShoppingBag } from 'lucide-react';
 import { useAuthStore } from '@/store/auth.store';
 import { useCartStore } from '@/store/cart.store';
+import { useI18n } from '@/i18n/i18n.context';
 
 /**
  * Profile page showing user details, role, and quick-action links.
  */
 export default function ProfilePage() {
   const navigate = useNavigate();
+  const { translate } = useI18n();
   const { user, logout } = useAuthStore();
   const getTotalItems = useCartStore((s) => s.getTotalItems);
 
@@ -30,10 +32,10 @@ export default function ProfilePage() {
 
   const roleLabel =
     user.role === 'ADMIN'
-      ? 'Administrator'
+      ? translate('profile.roleAdmin')
       : user.role === 'MANAGER'
-      ? 'Manager'
-      : 'Customer';
+      ? translate('profile.roleManager')
+      : translate('profile.roleCustomer');
 
   const roleColor =
     user.role === 'ADMIN'
@@ -44,7 +46,7 @@ export default function ProfilePage() {
 
   return (
     <div className="max-w-2xl mx-auto">
-      <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">My Profile</h1>
+      <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">{translate('profile.title')}</h1>
 
       {/* Avatar card */}
       <div className="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl p-6 mb-4 flex items-center gap-5">
@@ -63,7 +65,7 @@ export default function ProfilePage() {
       {/* Details */}
       <div className="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl p-6 mb-4 space-y-4">
         <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wide mb-1">
-          Account details
+          {translate('profile.accountDetails')}
         </h3>
 
         <div className="flex items-center gap-3">
@@ -71,7 +73,7 @@ export default function ProfilePage() {
             <User size={15} className="text-gray-500 dark:text-gray-400" />
           </div>
           <div>
-            <p className="text-xs text-gray-500 dark:text-gray-400">Username</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400">{translate('profile.username')}</p>
             <p className="text-sm font-medium text-gray-900 dark:text-white">{user.username}</p>
           </div>
         </div>
@@ -81,7 +83,7 @@ export default function ProfilePage() {
             <Mail size={15} className="text-gray-500 dark:text-gray-400" />
           </div>
           <div>
-            <p className="text-xs text-gray-500 dark:text-gray-400">Email</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400">{translate('profile.email')}</p>
             <p className="text-sm font-medium text-gray-900 dark:text-white">{user.email}</p>
           </div>
         </div>
@@ -91,7 +93,7 @@ export default function ProfilePage() {
             <Shield size={15} className="text-gray-500 dark:text-gray-400" />
           </div>
           <div>
-            <p className="text-xs text-gray-500 dark:text-gray-400">Role</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400">{translate('profile.role')}</p>
             <p className="text-sm font-medium text-gray-900 dark:text-white">{roleLabel}</p>
           </div>
         </div>
@@ -100,7 +102,7 @@ export default function ProfilePage() {
       {/* Quick actions */}
       <div className="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl p-4 mb-4 space-y-1">
         <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wide mb-2 px-2">
-          Quick actions
+          {translate('profile.quickActions')}
         </h3>
 
         <button
@@ -110,7 +112,7 @@ export default function ProfilePage() {
         >
           <div className="flex items-center gap-3">
             <ShoppingBag size={17} className="text-gray-400 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors" />
-            <span className="text-sm text-gray-700 dark:text-gray-200">My orders</span>
+            <span className="text-sm text-gray-700 dark:text-gray-200">{translate('profile.myOrders')}</span>
           </div>
           <span className="text-xs text-gray-400">→</span>
         </button>
@@ -122,9 +124,9 @@ export default function ProfilePage() {
         >
           <div className="flex items-center gap-3">
             <ShoppingBag size={17} className="text-gray-400 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors" />
-            <span className="text-sm text-gray-700 dark:text-gray-200">Cart</span>
+            <span className="text-sm text-gray-700 dark:text-gray-200">{translate('profile.cart')}</span>
           </div>
-          <span className="text-xs text-gray-400">{getTotalItems()} items →</span>
+          <span className="text-xs text-gray-400">{getTotalItems()} {translate('cart.items')} →</span>
         </button>
 
         {(user.role === 'ADMIN' || user.role === 'MANAGER') && (
@@ -135,7 +137,7 @@ export default function ProfilePage() {
           >
             <div className="flex items-center gap-3">
               <Shield size={17} className="text-gray-400 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors" />
-              <span className="text-sm text-gray-700 dark:text-gray-200">Admin panel</span>
+              <span className="text-sm text-gray-700 dark:text-gray-200">{translate('profile.adminPanel')}</span>
             </div>
             <span className="text-xs text-gray-400">→</span>
           </button>
@@ -149,7 +151,7 @@ export default function ProfilePage() {
         className="flex items-center gap-2 w-full px-5 py-3 rounded-2xl border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors text-sm font-medium"
       >
         <LogOut size={16} />
-        Sign out
+        {translate('profile.signOut')}
       </button>
     </div>
   );

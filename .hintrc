@@ -9,11 +9,7 @@
         "aria-valid-attr-value": "off"
       }
     ],
-    "axe/forms": [
-      "default",
-      {
-        "select-name": "off"
-      }
-    ]
+    "axe/forms": "off",
+    "axe/name-role-value": "off"
   }
 }

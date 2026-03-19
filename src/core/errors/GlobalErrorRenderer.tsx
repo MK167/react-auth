@@ -95,7 +95,7 @@ function useActionHandler(
 // ---------------------------------------------------------------------------
 
 function PageErrorOverlay({ error }: { error: ActiveError }) {
-  const { t } = useI18n();
+  const { translate } = useI18n();
   const clearPageError = useErrorStore((s) => s.clearPageError);
   const { handlePrimary, handleSecondary } = useActionHandler(error, clearPageError);
   const primaryBtnRef = useRef<HTMLButtonElement>(null);
@@ -108,8 +108,8 @@ function PageErrorOverlay({ error }: { error: ActiveError }) {
 
   const { config } = error;
   const primaryLabel = error.onRetry
-    ? t('common.retry', 'Try again')
-    : config.primaryAction?.label ?? t('common.goHome', 'Go Home');
+    ? translate('common.retry', 'Try again')
+    : config.primaryAction?.label ?? translate('common.goHome', 'Go Home');
 
   return (
     <div
@@ -130,7 +130,7 @@ function PageErrorOverlay({ error }: { error: ActiveError }) {
 
           {/* Title */}
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-3">
-            {t(config.titleKey)}
+            {translate(config.titleKey)}
           </h1>
 
           {/* Description */}
@@ -138,7 +138,7 @@ function PageErrorOverlay({ error }: { error: ActiveError }) {
             role="alert"
             className="text-gray-500 dark:text-gray-400 leading-relaxed mb-8 text-sm"
           >
-            {t(config.descriptionKey)}
+            {translate(config.descriptionKey)}
           </p>
 
           {/* Actions */}
@@ -182,7 +182,7 @@ function PageErrorOverlay({ error }: { error: ActiveError }) {
 // ---------------------------------------------------------------------------
 
 function ModalErrorDialog({ error }: { error: ActiveError }) {
-  const { t } = useI18n();
+  const { translate } = useI18n();
   const clearModalError = useErrorStore((s) => s.clearModalError);
   const { handlePrimary, handleSecondary } = useActionHandler(error, clearModalError);
   const primaryBtnRef = useRef<HTMLButtonElement>(null);
@@ -241,12 +241,12 @@ function ModalErrorDialog({ error }: { error: ActiveError }) {
 
         {/* Title */}
         <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-2">
-          {t(config.titleKey)}
+          {translate(config.titleKey)}
         </h2>
 
         {/* Description */}
         <p className="text-gray-500 dark:text-gray-400 text-sm leading-relaxed mb-6">
-          {t(config.descriptionKey)}
+          {translate(config.descriptionKey)}
         </p>
 
         {/* Actions */}
@@ -279,7 +279,7 @@ function ModalErrorDialog({ error }: { error: ActiveError }) {
 // ---------------------------------------------------------------------------
 
 function ToastItem({ error }: { error: ActiveError }) {
-  const { t } = useI18n();
+  const { translate } = useI18n();
   const removeToast = useErrorStore((s) => s.removeToast);
 
   // Auto-dismiss after `duration` ms.
@@ -311,10 +311,10 @@ function ToastItem({ error }: { error: ActiveError }) {
       {/* Content */}
       <div className="flex-1 min-w-0">
         <p className="text-sm font-semibold text-gray-900 dark:text-white">
-          {t(config.titleKey)}
+          {translate(config.titleKey)}
         </p>
         <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 line-clamp-2">
-          {t(config.descriptionKey)}
+          {translate(config.descriptionKey)}
         </p>
 
         {/* Retry link */}
@@ -325,7 +325,7 @@ function ToastItem({ error }: { error: ActiveError }) {
             className="mt-1.5 text-xs font-medium text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1"
           >
             <RefreshCw size={11} />
-            {t('common.retry', 'Try again')}
+            {translate('common.retry', 'Try again')}
           </button>
         )}
       </div>

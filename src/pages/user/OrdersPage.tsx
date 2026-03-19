@@ -10,6 +10,7 @@
 
 import { useNavigate } from 'react-router-dom';
 import { Package, ArrowRight, Clock, CheckCircle, Truck, XCircle } from 'lucide-react';
+import { useI18n } from '@/i18n/i18n.context';
 
 // ---------------------------------------------------------------------------
 // Mock data
@@ -34,44 +35,6 @@ const MOCK_ORDERS: MockOrder[] = [
 ];
 
 // ---------------------------------------------------------------------------
-// Status helpers
-// ---------------------------------------------------------------------------
-
-type StatusConfig = {
-  label: string;
-  icon: React.ReactNode;
-  classes: string;
-};
-
-const STATUS_CONFIG: Record<OrderStatus, StatusConfig> = {
-  pending: {
-    label: 'Pending',
-    icon: <Clock size={13} />,
-    classes: 'bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400',
-  },
-  processing: {
-    label: 'Processing',
-    icon: <Package size={13} />,
-    classes: 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400',
-  },
-  shipped: {
-    label: 'Shipped',
-    icon: <Truck size={13} />,
-    classes: 'bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-400',
-  },
-  delivered: {
-    label: 'Delivered',
-    icon: <CheckCircle size={13} />,
-    classes: 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400',
-  },
-  cancelled: {
-    label: 'Cancelled',
-    icon: <XCircle size={13} />,
-    classes: 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400',
-  },
-};
-
-// ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 
@@ -80,21 +43,58 @@ const STATUS_CONFIG: Record<OrderStatus, StatusConfig> = {
  */
 export default function OrdersPage() {
   const navigate = useNavigate();
+  const { translate } = useI18n();
+
+  // Status config uses translated labels — defined inside component to access translate()
+  const STATUS_CONFIG: Record<OrderStatus, { label: string; icon: React.ReactNode; classes: string }> = {
+    pending: {
+      label: translate('orders.status.pending'),
+      icon: <Clock size={13} />,
+      classes: 'bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400',
+    },
+    processing: {
+      label: translate('orders.status.processing'),
+      icon: <Package size={13} />,
+      classes: 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400',
+    },
+    shipped: {
+      label: translate('orders.status.shipped'),
+      icon: <Truck size={13} />,
+      classes: 'bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-400',
+    },
+    delivered: {
+      label: translate('orders.status.delivered'),
+      icon: <CheckCircle size={13} />,
+      classes: 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400',
+    },
+    cancelled: {
+      label: translate('orders.status.cancelled'),
+      icon: <XCircle size={13} />,
+      classes: 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400',
+    },
+  };
+
+  const STEP_LABELS = [
+    translate('orders.steps.ordered'),
+    translate('orders.steps.processing'),
+    translate('orders.steps.shipped'),
+    translate('orders.steps.delivered'),
+  ];
 
   return (
     <div className="max-w-3xl mx-auto">
-      <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">My Orders</h1>
+      <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">{translate('orders.title')}</h1>
 
       {MOCK_ORDERS.length === 0 ? (
         <div className="text-center py-16">
           <Package size={48} className="text-gray-300 dark:text-gray-600 mx-auto mb-4" />
-          <p className="text-gray-600 dark:text-gray-300 mb-4">You haven't placed any orders yet.</p>
+          <p className="text-gray-600 dark:text-gray-300 mb-4">{translate('orders.empty')}</p>
           <button
             type="button"
             onClick={() => navigate('/products')}
             className="text-sm text-indigo-600 dark:text-indigo-400 hover:underline"
           >
-            Start shopping
+            {translate('orders.startShopping')}
           </button>
         </div>
       ) : (
@@ -130,7 +130,7 @@ export default function OrdersPage() {
                       </span>
                       <span>·</span>
                       <span>
-                        {order.items} item{order.items !== 1 ? 's' : ''}
+                        {order.items} {order.items !== 1 ? translate('orders.items') : translate('orders.item')}
                       </span>
                     </div>
                   </div>
@@ -146,7 +146,7 @@ export default function OrdersPage() {
                       aria-label={`View order ${order.id}`}
                       className="flex items-center gap-1 text-sm text-indigo-600 dark:text-indigo-400 hover:underline"
                     >
-                      Details
+                      {translate('orders.details')}
                       <ArrowRight size={13} />
                     </button>
                   </div>
@@ -185,7 +185,7 @@ export default function OrdersPage() {
                       )}
                     </div>
                     <div className="flex justify-between mt-1">
-                      {['Ordered', 'Processing', 'Shipped', 'Delivered'].map((label) => (
+                      {STEP_LABELS.map((label) => (
                         <span key={label} className="text-[10px] text-gray-400">{label}</span>
                       ))}
                     </div>

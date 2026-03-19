@@ -132,7 +132,7 @@ export interface ErrorPageProps {
  * ```
  */
 export default function ErrorPage(props: ErrorPageProps) {
-  const { t } = useI18n();
+  const { translate } = useI18n();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const primaryBtnRef = useRef<HTMLButtonElement>(null);
@@ -157,8 +157,8 @@ export default function ErrorPage(props: ErrorPageProps) {
   const icon = props.icon ?? ICON_MAP[config.iconName] ?? <AlertTriangle size={36} strokeWidth={1.5} />;
   const iconBgClass    = props.iconBgClass    ?? config.iconBgClass;
   const iconColorClass = props.iconColorClass ?? config.iconColorClass;
-  const title          = props.title          ?? t(config.titleKey);
-  const description    = props.description    ?? t(config.descriptionKey);
+  const title          = props.title          ?? translate(config.titleKey);
+  const description    = props.description    ?? translate(config.descriptionKey);
 
   const primaryAction: ErrorActionButton | undefined =
     props.primaryAction ?? (config.primaryAction

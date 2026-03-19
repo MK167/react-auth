@@ -84,7 +84,7 @@ function Badge({ children, color = 'gray' }: { children: React.ReactNode; color?
 // ---------------------------------------------------------------------------
 
 function InlineErrorPreview({ code }: { code: ErrorCode }) {
-  const { t } = useI18n();
+  const { translate } = useI18n();
   const config = ERROR_CONFIG_MAP[code];
   if (!config) return null;
   return (
@@ -93,8 +93,8 @@ function InlineErrorPreview({ code }: { code: ErrorCode }) {
         <AlertTriangle size={16} />
       </span>
       <div>
-        <p className={`text-sm font-medium ${config.iconColorClass}`}>{t(config.titleKey)}</p>
-        <p className="text-xs text-gray-600 dark:text-gray-400 mt-0.5">{t(config.descriptionKey)}</p>
+        <p className={`text-sm font-medium ${config.iconColorClass}`}>{translate(config.titleKey)}</p>
+        <p className="text-xs text-gray-600 dark:text-gray-400 mt-0.5">{translate(config.descriptionKey)}</p>
       </div>
     </div>
   );
@@ -106,7 +106,7 @@ function InlineErrorPreview({ code }: { code: ErrorCode }) {
 
 export default function ErrorPlaygroundPage() {
   const navigate = useNavigate();
-  const { t } = useI18n();
+  const { translate } = useI18n();
   const { pushError, clearAll } = useErrorStore();
   const { featureFlags, setFeatureFlags } = useAuthStore();
 
@@ -241,10 +241,10 @@ export default function ErrorPlaygroundPage() {
               <Badge color="gray">key: {selectedConfig.titleKey}</Badge>
             </div>
             <div className="mt-2 text-xs text-gray-600 dark:text-gray-300">
-              <span className="font-medium">Title:</span> {t(selectedConfig.titleKey)}
+              <span className="font-medium">Title:</span> {translate(selectedConfig.titleKey)}
             </div>
             <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-              <span className="font-medium">Description:</span> {t(selectedConfig.descriptionKey)}
+              <span className="font-medium">Description:</span> {translate(selectedConfig.descriptionKey)}
             </div>
           </div>
         )}
@@ -460,7 +460,7 @@ export default function ErrorPlaygroundPage() {
                       <Badge color={modeColor[cfg.displayMode] ?? 'gray'}>{cfg.displayMode}</Badge>
                     </td>
                     <td className="px-2 py-2.5 text-gray-500 dark:text-gray-400 font-mono">{cfg.iconName}</td>
-                    <td className="px-2 py-2.5 text-gray-600 dark:text-gray-300">{t(cfg.titleKey)}</td>
+                    <td className="px-2 py-2.5 text-gray-600 dark:text-gray-300">{translate(cfg.titleKey)}</td>
                   </tr>
                 );
               })}

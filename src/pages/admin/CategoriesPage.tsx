@@ -46,6 +46,7 @@ import { Plus, Pencil, Trash2, Tag, AlertCircle, RefreshCw, X, Check } from 'luc
 import { getCategories } from '@/api/products.api';
 import { createCategory, updateCategory, deleteCategory } from '@/api/categories.api';
 import { Skeleton } from '@/components/ui/Skeleton';
+import { useI18n } from '@/i18n/i18n.context';
 import type { ProductCategory } from '@/types/product.types';
 
 // ---------------------------------------------------------------------------
@@ -75,6 +76,7 @@ function ConfirmDeleteModal({
   onConfirm,
   onClose,
 }: ConfirmDeleteProps) {
+  const { translate } = useI18n();
   const cancelRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
@@ -125,16 +127,14 @@ function ConfirmDeleteModal({
           id="cat-delete-title"
           className="text-base font-semibold text-gray-900 dark:text-white mb-2"
         >
-          Delete category
+          {translate('admin.categories.deleteModal.title')}
         </h2>
 
         <p className="text-sm text-gray-500 dark:text-gray-400 mb-5">
-          Delete{' '}
           <span className="font-medium text-gray-900 dark:text-white">
             &ldquo;{categoryName}&rdquo;
-          </span>
-          ? Products in this category will lose their category assignment. This
-          action cannot be undone.
+          </span>{' '}
+          — {translate('admin.categories.deleteModal.message')}
         </p>
 
         <div className="flex gap-3 justify-end">
@@ -145,7 +145,7 @@ function ConfirmDeleteModal({
             disabled={isLoading}
             className="px-4 py-2 text-sm font-medium rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors disabled:opacity-50"
           >
-            Cancel
+            {translate('admin.categories.deleteModal.cancel')}
           </button>
 
           <button
@@ -157,7 +157,7 @@ function ConfirmDeleteModal({
             {isLoading && (
               <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
             )}
-            {isLoading ? 'Deleting…' : 'Delete'}
+            {isLoading ? translate('admin.categories.deleteModal.deleting') : translate('admin.categories.deleteModal.delete')}
           </button>
         </div>
       </div>
@@ -174,6 +174,7 @@ function ConfirmDeleteModal({
  * delete confirmation modal.
  */
 export default function CategoriesPage() {
+  const { translate } = useI18n();
   const [categories, setCategories] = useState<ProductCategory[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -297,10 +298,10 @@ export default function CategoriesPage() {
       {/* Page heading */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-xl font-bold text-gray-900 dark:text-white">Categories</h1>
+          <h1 className="text-xl font-bold text-gray-900 dark:text-white">{translate('admin.categories.title')}</h1>
           {!loading && (
             <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
-              {categories.length} total categories
+              {translate('admin.categories.totalCategories').replace('{{count}}', String(categories.length))}
             </p>
           )}
         </div>
@@ -314,7 +315,7 @@ export default function CategoriesPage() {
           className="flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-xl transition-colors"
         >
           <Plus size={16} />
-          New Category
+          {translate('admin.categories.newCategory')}
         </button>
       </div>
 
@@ -322,12 +323,12 @@ export default function CategoriesPage() {
       {showCreate && (
         <div className="bg-white dark:bg-gray-800 border border-indigo-200 dark:border-indigo-800 rounded-xl p-4 mb-4">
           <p className="text-sm font-medium text-gray-700 dark:text-gray-200 mb-3">
-            Add new category
+            {translate('admin.categories.addNew')}
           </p>
           <div className="flex gap-3">
             <input
               type="text"
-              placeholder="Category name…"
+              placeholder={translate('admin.categories.namePlaceholder')}
               value={createName}
               onChange={(e: ChangeEvent<HTMLInputElement>) => setCreateName(e.target.value)}
               onKeyDown={(e: KeyboardEvent<HTMLInputElement>) => {
@@ -335,7 +336,6 @@ export default function CategoriesPage() {
                 if (e.key === 'Escape') setShowCreate(false);
               }}
               className="flex-1 px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              // eslint-disable-next-line jsx-a11y/no-autofocus
               autoFocus
             />
             <button
@@ -349,7 +349,7 @@ export default function CategoriesPage() {
               ) : (
                 <Check size={14} />
               )}
-              Add
+              {translate('common.add')}
             </button>
             <button
               type="button"
@@ -380,7 +380,7 @@ export default function CategoriesPage() {
             className="flex items-center gap-1.5 text-xs font-medium text-red-600 dark:text-red-400 hover:underline"
           >
             <RefreshCw size={13} />
-            Retry
+            {translate('common.retry')}
           </button>
         </div>
       )}
@@ -391,16 +391,16 @@ export default function CategoriesPage() {
           <thead>
             <tr className="border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-750">
               <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
-                Name
+                {translate('admin.categories.table.name')}
               </th>
               <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide hidden sm:table-cell">
-                Slug
+                {translate('admin.categories.table.slug')}
               </th>
               <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide hidden md:table-cell">
-                Created
+                {translate('admin.categories.table.created')}
               </th>
               <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
-                Actions
+                {translate('admin.categories.table.actions')}
               </th>
             </tr>
           </thead>
@@ -447,7 +447,6 @@ export default function CategoriesPage() {
                               if (e.key === 'Escape') cancelEdit();
                             }}
                             className="px-2 py-1 text-sm border border-indigo-400 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 w-40"
-                            // eslint-disable-next-line jsx-a11y/no-autofocus
                             autoFocus
                           />
                           <button
@@ -529,13 +528,13 @@ export default function CategoriesPage() {
               <tr>
                 <td colSpan={4} className="text-center py-16 text-gray-400 dark:text-gray-500">
                   <Tag size={32} className="mx-auto mb-3 opacity-40" />
-                  <p className="text-sm">No categories yet.</p>
+                  <p className="text-sm">{translate('admin.categories.empty')}</p>
                   <button
                     type="button"
                     onClick={() => setShowCreate(true)}
                     className="mt-2 text-sm text-indigo-600 dark:text-indigo-400 hover:underline"
                   >
-                    Create the first one
+                    {translate('admin.categories.createFirst')}
                   </button>
                 </td>
               </tr>
