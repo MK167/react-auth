@@ -17,6 +17,13 @@
       "password": "Password123",
       "role": "ADMIN",
       "createdAt": "2024-01-01T00:00:00.000Z"
+    },
+    {
+      "_id": "055f2425f343bf57ee3a8dfc",
+      "email": "engmohammed633@gmail.com",
+      "username": "Mohammed Khaled Saad",
+      "role": "CUSTOMER",
+      "password": "firebase:HilDzoOHZYerGuaJxs1AoAysC232"
     }
   ],
   "categories": [
@@ -348,7 +355,14 @@
       "createdAt": "2024-03-10T14:00:00.000Z"
     }
   ],
-  "cartItems": [],
+  "cartItems": [
+    {
+      "_id": "1c7a510a1d374c0eef2d0d0e",
+      "userId": "055f2425f343bf57ee3a8dfc",
+      "productId": "6648a1c4f3e2d1b0a987000a",
+      "quantity": 3
+    }
+  ],
   "wishlistItems": [],
   "content": {
     "default-en": {

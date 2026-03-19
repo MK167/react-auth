@@ -268,6 +268,7 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   logout: () => {
     cookieService.removeToken();
+    cookieService.removeRefreshToken();
     clearPersistedUser();
     clearPersistedFeatureFlags();
     // Clear frontend-only cart and wishlist state. Server-side data is

@@ -261,6 +261,41 @@ app.post('/api/v1/users/refresh-token', (req, res) => {
   return ok(res, { accessToken: newAccessToken }, 'Token refreshed');
 });
 
+/** POST /api/v1/users/social-login
+ *
+ * Exchanges a Firebase-authenticated user's profile for a mock backend
+ * session (access + refresh token pair). No Firebase token verification
+ * is performed — this is a dev-only mock endpoint.
+ *
+ * Finds an existing user by email or creates a new CUSTOMER account.
+ */
+app.post('/api/v1/users/social-login', (req, res) => {
+  const { uid, email, displayName } = req.body || {};
+  if (!uid || !email) {
+    return fail(res, 'uid and email are required', 400, 'VALIDATION_ERROR');
+  }
+
+  const db = readDb();
+  let user = db.users.find((u) => u.email === email);
+
+  if (!user) {
+    user = {
+      _id:      makeObjectId(),
+      email,
+      username: displayName || email.split('@')[0],
+      role:     'CUSTOMER',
+      password: `firebase:${uid}`,
+    };
+    db.users.push(user);
+    writeDb(db);
+  }
+
+  const { password: _pw, ...safeUser } = user;
+  const accessToken  = makeToken(user._id);
+  const refreshToken = makeRefreshToken(user._id);
+  return ok(res, { user: safeUser, accessToken, refreshToken }, 'Social login successful');
+});
+
 // ===========================================================================
 // PRODUCT ROUTES
 // ===========================================================================

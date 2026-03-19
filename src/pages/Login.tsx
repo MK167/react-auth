@@ -7,6 +7,7 @@ import { useAuthStore } from "@/store/auth.store";
 import { useCartMerge } from "@/hooks/useCartMerge";
 import { useWishlistSync } from "@/hooks/useWishlistSync";
 import { prefetchAdminDashboard } from "@/utils/prefetch";
+import { cookieService } from "@/utils/cookie.service";
 import { useI18n } from "@/i18n/i18n.context";
 
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -93,6 +94,7 @@ export default function Login() {
       const response = await loginApi(data);
       const user = response.data.user;
       setAuth(user, response.data.accessToken);
+      cookieService.setRefreshToken(response.data.refreshToken);
 
       void mergeGuestCartWithServer();
       void syncWishlistAfterLogin();
