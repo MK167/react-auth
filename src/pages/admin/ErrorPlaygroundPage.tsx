@@ -307,59 +307,85 @@ export default function ErrorPlaygroundPage() {
         />
 
         <div className="grid sm:grid-cols-2 gap-3">
+          {/* ── PAGE scenarios ─────────────────────────── */}
           <ScenarioCard
             title="Unauthorized (FORBIDDEN)"
-            description="Simulates accessing a page without permission. PAGE overlay."
+            description="Simulates accessing a page without permission — full-screen overlay blocks navigation."
             color="red"
+            displayMode="PAGE"
             onClick={handleSimulateUnauthorized}
           />
           <ScenarioCard
-            title="Session Expired"
-            description="Simulates a token expiry requiring re-login. MODAL dialog."
-            color="amber"
-            onClick={handleSimulateSessionExpired}
-          />
-          <ScenarioCard
-            title="Deep Link Validation"
-            description="Navigate to /orders/nonexistent-id to trigger resource not-found."
-            color="indigo"
-            onClick={handleSimulateDeepLink}
-          />
-          <ScenarioCard
             title="Network Error"
-            description="Push a NETWORK_ERROR as a PAGE overlay."
+            description="NETWORK_ERROR full-screen overlay with a retry callback that clears the error."
             color="gray"
+            displayMode="PAGE"
             onClick={() => pushError('NETWORK_ERROR', {
               onRetry: () => { clearAll(); },
             })}
           />
           <ScenarioCard
-            title="Server Error Toast"
-            description="SERVER_ERROR shown as a TOAST (non-critical display override)."
+            title="Feature Disabled"
+            description="FEATURE_DISABLED full-screen overlay — use to test FeatureGuard fallback UI."
             color="gray"
+            displayMode="PAGE"
+            onClick={() => pushError('FEATURE_DISABLED')}
+          />
+          {/* ── MODAL scenarios ────────────────────────── */}
+          <ScenarioCard
+            title="Session Expired"
+            description="Token expiry — requires the user to sign in again. Dismissible by clicking the backdrop or Esc."
+            color="amber"
+            displayMode="MODAL"
+            onClick={handleSimulateSessionExpired}
+          />
+          <ScenarioCard
+            title="Order Not Found (Modal)"
+            description="ORDER_NOT_FOUND displayed as a modal dialog instead of its default PAGE mode."
+            color="purple"
+            displayMode="MODAL"
+            onClick={() => pushError('ORDER_NOT_FOUND', { displayModeOverride: 'MODAL' })}
+          />
+          <ScenarioCard
+            title="Unknown Error (Modal)"
+            description="Generic UNKNOWN_ERROR as a dismissible modal. Good for testing modal layout and actions."
+            color="purple"
+            displayMode="MODAL"
+            onClick={() => pushError('UNKNOWN_ERROR', { displayModeOverride: 'MODAL' })}
+          />
+          {/* ── TOAST scenarios ────────────────────────── */}
+          <ScenarioCard
+            title="Server Error Toast"
+            description="SERVER_ERROR shown as a TOAST — non-blocking override for background operations."
+            color="gray"
+            displayMode="TOAST"
             onClick={() => pushError('SERVER_ERROR', { displayModeOverride: 'TOAST' })}
           />
           <ScenarioCard
             title="Validation Toast"
-            description="VALIDATION_ERROR as default TOAST notification."
+            description="VALIDATION_ERROR as its default TOAST notification — auto-dismisses after 4 s."
             color="amber"
+            displayMode="TOAST"
             onClick={() => pushError('VALIDATION_ERROR')}
           />
           <ScenarioCard
             title="Multiple Toasts"
-            description="Push 3 different toasts simultaneously."
+            description="Push 3 different toasts in quick succession to test the toast queue and stacking."
             color="indigo"
+            displayMode="TOAST"
             onClick={() => {
               pushError('VALIDATION_ERROR');
               setTimeout(() => pushError('UNKNOWN_ERROR', { displayModeOverride: 'TOAST' }), 200);
               setTimeout(() => pushError('NETWORK_ERROR', { displayModeOverride: 'TOAST' }), 400);
             }}
           />
+          {/* ── OTHER scenarios ────────────────────────── */}
           <ScenarioCard
-            title="Feature Disabled"
-            description="FEATURE_DISABLED as PAGE overlay."
-            color="gray"
-            onClick={() => pushError('FEATURE_DISABLED')}
+            title="Deep Link Validation"
+            description="Navigate to /orders/nonexistent-id to trigger the DeepLinkGuard resource not-found flow."
+            color="indigo"
+            displayMode="PAGE"
+            onClick={handleSimulateDeepLink}
           />
         </div>
       </div>
@@ -483,11 +509,13 @@ function ScenarioCard({
   title,
   description,
   color,
+  displayMode,
   onClick,
 }: {
   title: string;
   description: string;
-  color: 'red' | 'amber' | 'indigo' | 'gray';
+  color: 'red' | 'amber' | 'indigo' | 'gray' | 'purple';
+  displayMode: ErrorDisplayMode;
   onClick: () => void;
 }) {
   const borderMap = {
@@ -495,19 +523,30 @@ function ScenarioCard({
     amber:  'border-amber-200 dark:border-amber-800 hover:border-amber-300 dark:hover:border-amber-700',
     indigo: 'border-indigo-200 dark:border-indigo-800 hover:border-indigo-300 dark:hover:border-indigo-700',
     gray:   'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600',
+    purple: 'border-purple-200 dark:border-purple-800 hover:border-purple-300 dark:hover:border-purple-700',
   };
   const btnMap = {
     red:    'bg-red-600 hover:bg-red-700',
     amber:  'bg-amber-500 hover:bg-amber-600',
     indigo: 'bg-indigo-600 hover:bg-indigo-700',
     gray:   'bg-gray-600 hover:bg-gray-700',
+    purple: 'bg-purple-600 hover:bg-purple-700',
+  };
+  const modeBadgeMap: Record<ErrorDisplayMode, string> = {
+    PAGE:   'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400',
+    MODAL:  'bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400',
+    TOAST:  'bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400',
+    INLINE: 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400',
   };
 
   return (
-    <div
-      className={`p-4 rounded-xl border transition-colors ${borderMap[color]}`}
-    >
-      <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-1">{title}</h3>
+    <div className={`p-4 rounded-xl border transition-colors ${borderMap[color]}`}>
+      <div className="flex items-start justify-between gap-2 mb-1">
+        <h3 className="text-sm font-semibold text-gray-900 dark:text-white">{title}</h3>
+        <span className={`flex-shrink-0 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold font-mono ${modeBadgeMap[displayMode]}`}>
+          {displayMode}
+        </span>
+      </div>
       <p className="text-xs text-gray-500 dark:text-gray-400 mb-3 leading-relaxed">{description}</p>
       <button
         type="button"

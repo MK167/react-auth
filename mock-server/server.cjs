@@ -459,19 +459,37 @@ app.post('/api/v1/ecommerce/orders', (req, res) => {
 
   const { items, shippingAddress, totalAmount, orderNumber } = req.body;
   const newId = makeObjectId();
+  const price = typeof totalAmount === 'number' ? totalAmount : 0;
+
+  // Enrich items with _id and full product reference
+  const db = readDb();
+  const enrichedItems = (Array.isArray(items) ? items : []).map((item, i) => {
+    const productId = item.product?._id || item.productId || item._id;
+    const product = productId ? (db.products.find((p) => p._id === productId) || item.product) : item.product;
+    return {
+      _id: `item-${newId}-${i}`,
+      product: product || null,
+      quantity: item.quantity || 1,
+    };
+  });
 
   const order = {
     id: newId, _id: newId,
     userId: user._id,
     orderNumber: orderNumber || `ORD-${newId.slice(-6).toUpperCase()}`,
     status: 'PENDING',
-    items: Array.isArray(items) ? items : [],
-    totalAmount: typeof totalAmount === 'number' ? totalAmount : 0,
-    shippingAddress: shippingAddress || {},
-    createdAt: new Date().toISOString(),
+    items: enrichedItems,
+    orderPrice:           price,
+    discountedOrderPrice: price,
+    coupon:               null,
+    paymentProvider:      'MOCK',
+    paymentId:            `pay-${newId}`,
+    isPaymentDone:        true,
+    shippingAddress:      shippingAddress || {},
+    createdAt:            new Date().toISOString(),
+    updatedAt:            new Date().toISOString(),
   };
 
-  const db = readDb();
   db.orders.push(order);
   writeDb(db);
   return ok(res, order, 'Order created', 201);
@@ -495,6 +513,51 @@ app.get('/api/v1/ecommerce/orders/:orderId', (req, res) => {
   return ok(res, order, 'Order fetched');
 });
 
+/**
+ * Normalises a raw db.json order into the Order shape expected by the frontend.
+ *
+ * Legacy seed orders use `totalAmount`; new orders use `orderPrice` /
+ * `discountedOrderPrice`. This function handles both so old seeded data
+ * renders correctly without a db.json migration.
+ */
+function normalizeOrder(o, db) {
+  const customer = db.users.find((u) => u._id === o.userId);
+  const price = o.orderPrice ?? o.totalAmount ?? 0;
+
+  // Ensure each item has `_id` and a fully populated product.
+  const items = (o.items || []).map((item, i) => {
+    const productId = item.product?._id || item.productId;
+    const fullProduct = productId
+      ? (db.products.find((p) => p._id === productId) || item.product || null)
+      : (item.product || null);
+    return {
+      _id: item._id || `item-${o._id}-${i}`,
+      product: fullProduct,
+      quantity: item.quantity || 1,
+    };
+  });
+
+  return {
+    ...o,
+    items,
+    orderPrice:           price,
+    discountedOrderPrice: o.discountedOrderPrice ?? price,
+    coupon:               o.coupon ?? null,
+    paymentProvider:      o.paymentProvider ?? 'MOCK',
+    paymentId:            o.paymentId ?? '',
+    isPaymentDone:        o.isPaymentDone ?? true,
+    updatedAt:            o.updatedAt ?? o.createdAt,
+    customer: customer
+      ? {
+          _id:      customer._id,
+          username: customer.username,
+          email:    customer.email,
+          role:     customer.role ?? 'CUSTOMER',
+        }
+      : { _id: o.userId, username: 'Unknown', email: '', role: 'CUSTOMER' },
+  };
+}
+
 /** GET /api/v1/ecommerce/admin/orders — all orders (paginated, admin/manager) */
 app.get('/api/v1/ecommerce/admin/orders', (req, res) => {
   const user = getUserFromToken(req);
@@ -504,18 +567,8 @@ app.get('/api/v1/ecommerce/admin/orders', (req, res) => {
   }
 
   const db = readDb();
-  // Populate each order with customer info
-  const orders = db.orders.map((o) => {
-    const customer = db.users.find((u) => u._id === o.userId);
-    return {
-      ...o,
-      customer: customer
-        ? { _id: customer._id, username: customer.username, email: customer.email }
-        : null,
-    };
-  });
+  const orders = db.orders.map((o) => normalizeOrder(o, db));
 
-  // Optional status filter
   const { status } = req.query;
   const filtered = status ? orders.filter((o) => o.status === status) : orders;
 
@@ -534,13 +587,7 @@ app.get('/api/v1/ecommerce/admin/orders/:orderId', (req, res) => {
   const order = db.orders.find((o) => o._id === req.params.orderId);
   if (!order) return fail(res, 'Order not found', 404, 'ORDER_NOT_FOUND');
 
-  const customer = db.users.find((u) => u._id === order.userId);
-  return ok(res, {
-    ...order,
-    customer: customer
-      ? { _id: customer._id, username: customer.username, email: customer.email }
-      : null,
-  }, 'Order fetched');
+  return ok(res, normalizeOrder(order, db), 'Order fetched');
 });
 
 /** PATCH /api/v1/ecommerce/admin/orders/:orderId/status */
@@ -570,29 +617,178 @@ app.patch('/api/v1/ecommerce/admin/orders/:orderId/status', (req, res) => {
 // CART ROUTES
 // ===========================================================================
 
-/** POST /api/v1/ecommerce/cart/merge (guest cart merge on login) */
-app.post('/api/v1/ecommerce/cart/merge', (_req, res) => {
-  return ok(res, { message: 'Cart merged' }, 'Cart merged');
-});
+/**
+ * Builds a fully-populated cart response from raw cartItems rows.
+ * Each returned item has: { _id, product: <full Product>, quantity }
+ * Any cartItem whose productId no longer exists in products is silently
+ * dropped (stale reference guard).
+ */
+function buildCartResponse(db, userId) {
+  const rawItems = db.cartItems.filter((c) => c.userId === userId);
+  const items = rawItems
+    .map((c) => {
+      const product = db.products.find((p) => p._id === c.productId) || null;
+      if (!product) return null;
+      return { _id: c._id, product, quantity: c.quantity };
+    })
+    .filter(Boolean);
 
-/** GET /api/v1/ecommerce/cart */
+  const cartTotal = items.reduce(
+    (sum, i) => sum + i.product.price * i.quantity,
+    0,
+  );
+
+  return {
+    items,
+    cartTotal: Math.round(cartTotal * 100) / 100,
+    discountedTotal: Math.round(cartTotal * 100) / 100,
+    couponApplied: null,
+  };
+}
+
+/** GET /api/v1/ecommerce/cart — returns user cart with fully populated products */
 app.get('/api/v1/ecommerce/cart', (req, res) => {
   const user = getUserFromToken(req);
+  if (!user) return ok(res, buildCartResponse({ cartItems: [], products: [] }, 'NOBODY'), 'Cart fetched');
   const db = readDb();
-  const items = user ? db.cartItems.filter((c) => c.userId === user._id) : [];
-  return ok(res, { items, couponApplied: null }, 'Cart fetched');
+  return ok(res, buildCartResponse(db, user._id), 'Cart fetched');
+});
+
+/**
+ * POST /api/v1/ecommerce/cart/item/:productId
+ * Adds a product to the user's server cart, or SETS the quantity if the
+ * product is already present. (FreeAPI semantics: sets, does not increment.)
+ */
+app.post('/api/v1/ecommerce/cart/item/:productId', (req, res) => {
+  const user = getUserFromToken(req);
+  if (!user) return fail(res, 'Unauthorized', 401, 'UNAUTHORIZED');
+
+  const { productId } = req.params;
+  const quantity = parseInt(req.body?.quantity ?? '1', 10);
+
+  const db = readDb();
+  const product = db.products.find((p) => p._id === productId);
+  if (!product) return fail(res, 'Product not found', 404, 'PRODUCT_NOT_FOUND');
+
+  const clampedQty = Math.min(Math.max(1, quantity), product.stock);
+  const existing = db.cartItems.findIndex(
+    (c) => c.userId === user._id && c.productId === productId,
+  );
+
+  if (existing >= 0) {
+    db.cartItems[existing].quantity = clampedQty;
+  } else {
+    db.cartItems.push({
+      _id: makeObjectId(),
+      userId: user._id,
+      productId,
+      quantity: clampedQty,
+    });
+  }
+
+  writeDb(db);
+  return ok(res, buildCartResponse(db, user._id), 'Item added to cart');
+});
+
+/**
+ * PATCH /api/v1/ecommerce/cart/item/:productId
+ * Updates the quantity of an existing cart line.
+ */
+app.patch('/api/v1/ecommerce/cart/item/:productId', (req, res) => {
+  const user = getUserFromToken(req);
+  if (!user) return fail(res, 'Unauthorized', 401, 'UNAUTHORIZED');
+
+  const { productId } = req.params;
+  const quantity = parseInt(req.body?.quantity ?? '1', 10);
+
+  const db = readDb();
+  const product = db.products.find((p) => p._id === productId);
+  if (!product) return fail(res, 'Product not found', 404, 'PRODUCT_NOT_FOUND');
+
+  const idx = db.cartItems.findIndex(
+    (c) => c.userId === user._id && c.productId === productId,
+  );
+
+  if (idx < 0) {
+    // Item doesn't exist yet — create it (upsert semantics)
+    db.cartItems.push({
+      _id: makeObjectId(),
+      userId: user._id,
+      productId,
+      quantity: Math.min(Math.max(1, quantity), product.stock),
+    });
+  } else {
+    db.cartItems[idx].quantity = Math.min(Math.max(1, quantity), product.stock);
+  }
+
+  writeDb(db);
+  return ok(res, buildCartResponse(db, user._id), 'Cart item updated');
+});
+
+/**
+ * DELETE /api/v1/ecommerce/cart/item/:productId
+ * Removes a single product line from the user's cart.
+ */
+app.delete('/api/v1/ecommerce/cart/item/:productId', (req, res) => {
+  const user = getUserFromToken(req);
+  if (!user) return fail(res, 'Unauthorized', 401, 'UNAUTHORIZED');
+
+  const db = readDb();
+  const before = db.cartItems.length;
+  db.cartItems = db.cartItems.filter(
+    (c) => !(c.userId === user._id && c.productId === req.params.productId),
+  );
+
+  if (db.cartItems.length === before) {
+    return fail(res, 'Item not found in cart', 404, 'RESOURCE_NOT_FOUND');
+  }
+
+  writeDb(db);
+  return ok(res, buildCartResponse(db, user._id), 'Cart item removed');
+});
+
+/**
+ * DELETE /api/v1/ecommerce/cart
+ * Clears all items from the user's cart (called after a successful checkout).
+ */
+app.delete('/api/v1/ecommerce/cart', (req, res) => {
+  const user = getUserFromToken(req);
+  if (!user) return fail(res, 'Unauthorized', 401, 'UNAUTHORIZED');
+
+  const db = readDb();
+  db.cartItems = db.cartItems.filter((c) => c.userId !== user._id);
+  writeDb(db);
+  return ok(res, { items: [], cartTotal: 0, discountedTotal: 0, couponApplied: null }, 'Cart cleared');
 });
 
 // ===========================================================================
 // WISHLIST ROUTES
 // ===========================================================================
 
-/** GET /api/v1/ecommerce/wishlist (legacy path) */
+/**
+ * Builds a FreeAPI-compatible wishlist response from raw wishlistItems rows.
+ * Returns { wishlistItems: [{ _id, product: <full Product> }], wishlistItemsCount }
+ * Items whose productId no longer exists are silently dropped.
+ */
+function buildWishlistResponse(db, userId) {
+  const rawItems = db.wishlistItems.filter((w) => w.userId === userId);
+  const wishlistItems = rawItems
+    .map((w) => {
+      const product = db.products.find((p) => p._id === w.productId) || null;
+      if (!product) return null;
+      return { _id: w._id || `wi-${w.productId}`, product };
+    })
+    .filter(Boolean);
+
+  return { wishlistItems, wishlistItemsCount: wishlistItems.length };
+}
+
+/** GET /api/v1/ecommerce/wishlist (legacy path — kept for backwards compat) */
 app.get('/api/v1/ecommerce/wishlist', (req, res) => {
   const user = getUserFromToken(req);
+  if (!user) return ok(res, { wishlistItems: [], wishlistItemsCount: 0 }, 'Wishlist fetched');
   const db = readDb();
-  const items = user ? db.wishlistItems.filter((w) => w.userId === user._id) : [];
-  return ok(res, { items }, 'Wishlist fetched');
+  return ok(res, buildWishlistResponse(db, user._id), 'Wishlist fetched');
 });
 
 /** GET /api/v1/ecommerce/profile/wishlist (FreeAPI-compatible path) */
@@ -600,11 +796,10 @@ app.get('/api/v1/ecommerce/profile/wishlist', (req, res) => {
   const user = getUserFromToken(req);
   if (!user) return fail(res, 'Unauthorized', 401, 'UNAUTHORIZED');
   const db = readDb();
-  const items = db.wishlistItems.filter((w) => w.userId === user._id);
-  return ok(res, { items, totalItems: items.length }, 'Wishlist fetched');
+  return ok(res, buildWishlistResponse(db, user._id), 'Wishlist fetched');
 });
 
-/** POST /api/v1/ecommerce/wishlist/item/:productId (legacy path) */
+/** POST /api/v1/ecommerce/wishlist/item/:productId (legacy toggle path) */
 app.post('/api/v1/ecommerce/wishlist/item/:productId', (req, res) => {
   const user = getUserFromToken(req);
   if (!user) return fail(res, 'Unauthorized', 401, 'UNAUTHORIZED');
@@ -617,12 +812,16 @@ app.post('/api/v1/ecommerce/wishlist/item/:productId', (req, res) => {
   if (existing >= 0) {
     db.wishlistItems.splice(existing, 1);
     writeDb(db);
-    return ok(res, null, 'Removed from wishlist');
+    return ok(res, buildWishlistResponse(db, user._id), 'Removed from wishlist');
   }
 
-  db.wishlistItems.push({ userId: user._id, productId: req.params.productId });
+  db.wishlistItems.push({
+    _id: makeObjectId(),
+    userId: user._id,
+    productId: req.params.productId,
+  });
   writeDb(db);
-  return ok(res, null, 'Added to wishlist');
+  return ok(res, buildWishlistResponse(db, user._id), 'Added to wishlist');
 });
 
 /** POST /api/v1/ecommerce/profile/wishlist/:productId (FreeAPI-compatible toggle) */
@@ -638,12 +837,16 @@ app.post('/api/v1/ecommerce/profile/wishlist/:productId', (req, res) => {
   if (existing >= 0) {
     db.wishlistItems.splice(existing, 1);
     writeDb(db);
-    return ok(res, { wishlisted: false }, 'Removed from wishlist');
+    return ok(res, buildWishlistResponse(db, user._id), 'Removed from wishlist');
   }
 
-  db.wishlistItems.push({ userId: user._id, productId: req.params.productId });
+  db.wishlistItems.push({
+    _id: makeObjectId(),
+    userId: user._id,
+    productId: req.params.productId,
+  });
   writeDb(db);
-  return ok(res, { wishlisted: true }, 'Added to wishlist');
+  return ok(res, buildWishlistResponse(db, user._id), 'Added to wishlist');
 });
 
 // ===========================================================================

@@ -1,17 +1,21 @@
 /**
  * @fileoverview Guest-to-server cart merge hook.
  *
- * ## Cart merge algorithm
+ * ## Cart merge + server load algorithm
  *
- * When a guest user logs in, this hook reconciles their localStorage cart
- * with the server-side cart using the following algorithm:
+ * This hook runs once after every successful login. It has two responsibilities:
+ *
+ * 1. **Merge**: push any guest (localStorage) cart items into the user's
+ *    server-side cart, using a sum-and-cap strategy for duplicate products.
+ * 2. **Load**: fetch the final server cart and populate the Zustand store so
+ *    the cart badge and CartPage immediately reflect the persisted server state.
  *
  * ```
  * Input:
- *   guestItems = useCartStore.getState().items   (localStorage)
- *   serverItems = await getServerCart()           (API)
+ *   guestItems  = useCartStore.getState().items     (localStorage, pre-login)
+ *   serverItems = await getServerCart()              (server, post-auth)
  *
- * Algorithm (for each guestItem):
+ * Merge step (for each guestItem, only if guestItems.length > 0):
  *   serverItem = serverItems.find(i => i.product._id === guestItem.product._id)
  *
  *   if (serverItem exists):
@@ -20,9 +24,19 @@
  *   else:
  *     await addToServerCart(productId, guestItem.quantity)
  *
- * On completion:
- *   clearCart()  ← wipes localStorage; server is now the single source of truth
+ * Load step (always):
+ *   refreshedCart = await getServerCart()
+ *   loadServerCart(refreshedCart.items mapped to CartItem[])
  * ```
+ *
+ * ## Why the early return was removed
+ *
+ * The original implementation returned early when `guestItems.length === 0`,
+ * which meant a returning authenticated user (no guest items) never had their
+ * server cart loaded into Zustand. Their CartPage showed an empty cart even
+ * though the server had persisted items from a previous session.
+ *
+ * The fix: always proceed to the load step regardless of guest item count.
  *
  * ## Conflict resolution
  *
@@ -30,111 +44,123 @@
  * |-----------------------------------|-----------------------------------------|
  * | Same product in both carts        | Sum quantities, cap at `product.stock`  |
  * | Product only in guest cart        | Add to server with guest quantity       |
- * | Product only in server cart       | Leave untouched (no client involvement) |
+ * | Product only in server cart       | Untouched (returned in load step)       |
  * | Product deleted from server       | `addToServerCart` fails → `allSettled`  |
- * |                                   | skips it silently, cart still cleared   |
+ * |                                   | skips it silently; server cart reloaded |
  *
- * ## Why `Promise.allSettled` instead of `Promise.all`
+ * ## Server cart → Zustand CartItem mapping
  *
- * Merge failures for individual items (product deleted, stock exhausted on
- * server) must not abort the entire merge. `allSettled` lets each item
- * attempt independently. The local cart is cleared regardless — retaining a
- * stale guest cart across sessions creates more UX confusion than the data
- * loss from a single failed item sync.
- *
- * ## Non-blocking integration
- *
- * The merge is called with `void` in login handlers so it does not delay
- * navigation. The user arrives at their destination while the sync completes
- * in the background. The cart badge updates reactively as items are synced
- * to the Zustand store (which `CartPage` reads from localStorage, now empty).
- *
- * In a production system you would also refresh the Zustand cart from the
- * server after merge so the local copy reflects the authoritative server state.
+ * `ServerCart.items` contains `{ _id, product: ServerCartProduct, quantity }`.
+ * `ServerCartProduct` is a partial Product (no description, category, slug,
+ * etc.). We cast it to `Product` via `as unknown as Product` because CartPage
+ * and CartBadge only read `_id`, `name`, `price`, `stock`, and `mainImage`.
+ * Missing fields render as empty/undefined, which is safe for the UI.
  *
  * @module hooks/useCartMerge
  */
 
 import { useCallback } from 'react';
 import { useCartStore } from '@/store/cart.store';
+import type { CartItem } from '@/types/cart.types';
+import type { Product } from '@/types/product.types';
 import { getServerCart, addToServerCart, updateServerCartItem } from '@/api/cart.api';
+
+// ---------------------------------------------------------------------------
+// Helper
+// ---------------------------------------------------------------------------
+
+/**
+ * Maps server cart items to the Zustand CartItem shape.
+ * Uses a type cast because ServerCartProduct is a partial Product —
+ * only fields rendered by CartPage/CartBadge are guaranteed present.
+ */
+function mapServerItemsToCartItems(
+  serverItems: Awaited<ReturnType<typeof getServerCart>>['data']['items'],
+): CartItem[] {
+  if (!Array.isArray(serverItems)) return [];
+  return serverItems.map((si) => ({
+    product: si.product as unknown as Product,
+    quantity: si.quantity,
+  }));
+}
 
 // ---------------------------------------------------------------------------
 // Hook
 // ---------------------------------------------------------------------------
 
 /**
- * Returns a `mergeGuestCartWithServer` callback that reconciles the guest
- * localStorage cart with the authenticated user's server cart.
+ * Returns `mergeGuestCartWithServer`, a stable callback that:
+ * 1. Merges the current guest localStorage cart into the server cart.
+ * 2. Reloads the authoritative server cart into the Zustand store.
  *
- * The callback is stable (wrapped in `useCallback`) and safe to call in a
- * fire-and-forget pattern from login handlers:
+ * Call it fire-and-forget immediately after `setAuth(user, token)`:
  *
  * ```ts
  * const { mergeGuestCartWithServer } = useCartMerge();
- *
- * // After setAuth(user, token):
  * void mergeGuestCartWithServer();
  * ```
  *
- * @returns Object containing the `mergeGuestCartWithServer` async function.
+ * @returns Object containing `mergeGuestCartWithServer`.
  */
 export function useCartMerge() {
-  // Subscribe only to clearCart (stable reference, never changes).
-  // Guest items are read at call time via getState() to avoid stale closures.
-  const clearCart = useCartStore((s) => s.clearCart);
+  const clearCart      = useCartStore((s) => s.clearCart);
+  const loadServerCart = useCartStore((s) => s.loadServerCart);
 
   const mergeGuestCartWithServer = useCallback(async () => {
-    // Read the snapshot at call time — at this point the user just logged in
-    // so the cart still contains the pre-auth guest items.
+    // Snapshot guest items at call time (before any state mutations).
     const guestItems = useCartStore.getState().items;
 
-    // Nothing to merge — skip the API round-trip entirely.
-    if (guestItems.length === 0) return;
-
     try {
-      // Fetch the server cart to determine which products are already there.
-      // If the server cart is empty (new user / never checked out), the diff
-      // will add all guest items without any merging.
+      // ── Step 1: fetch server cart ────────────────────────────────────────
+      // Always fetch regardless of whether there are guest items. This is the
+      // primary fix for the "returning user sees empty cart" bug.
       const serverCartRes = await getServerCart();
-      const serverItems = serverCartRes.data?.items ?? [];
+      const serverItems   = serverCartRes.data?.items ?? [];
 
-      // Build a lookup map: productId → serverItem for O(1) access during diff
-      const serverItemMap = new Map(
-        serverItems.map((item) => [item.product._id, item]),
-      );
+      // ── Step 2: merge guest items into server cart (if any) ──────────────
+      if (guestItems.length > 0) {
+        // Build a lookup for O(1) per-product access during the merge diff.
+        const serverItemMap = new Map(
+          serverItems.map((item) => [item.product._id, item]),
+        );
 
-      // Process each guest item: update or add to server
-      await Promise.allSettled(
-        guestItems.map(({ product, quantity }) => {
-          const serverItem = serverItemMap.get(product._id);
+        await Promise.allSettled(
+          guestItems.map(({ product, quantity }) => {
+            const serverItem = serverItemMap.get(product._id);
 
-          if (serverItem) {
-            // Product is in both carts → sum quantities, cap at stock.
-            // server is authoritative on existing quantity; guest only adds.
-            const mergedQty = Math.min(
-              serverItem.quantity + quantity,
-              product.stock,
-            );
-            return updateServerCartItem(product._id, mergedQty);
-          } else {
-            // New item — add to server with guest quantity.
-            return addToServerCart(product._id, quantity);
-          }
-        }),
-      );
+            if (serverItem) {
+              // Product exists in both → sum quantities, cap at stock.
+              const mergedQty = Math.min(
+                serverItem.quantity + quantity,
+                product.stock,
+              );
+              return updateServerCartItem(product._id, mergedQty);
+            } else {
+              // New item from guest session → add to server.
+              return addToServerCart(product._id, quantity);
+            }
+          }),
+        );
 
-      // Clear the localStorage guest cart.
-      // Even if some individual item syncs failed (allSettled), we clear:
-      // retaining a stale local cart that partially overlaps with the server
-      // creates more confusion than silently dropping unsynced items.
-      clearCart();
+        // Clear the localStorage guest cart now that items are on the server.
+        // We clear here (before the reload) so there is no duplication window.
+        clearCart();
+
+        // ── Step 3: reload server cart after merge ──────────────────────
+        // Re-fetch to get the authoritative merged state (some adds may have
+        // failed via allSettled, so we trust the server's current truth).
+        const refreshedRes  = await getServerCart();
+        const refreshedItems = refreshedRes.data?.items ?? [];
+        loadServerCart(mapServerItemsToCartItems(refreshedItems));
+      } else {
+        // No guest items — simply load the server cart directly.
+        loadServerCart(mapServerItemsToCartItems(serverItems));
+      }
     } catch {
       // getServerCart() failed (network, 401 refresh loop, etc.).
-      // Leave the local cart intact so the user does not lose their items.
-      // The merge will be attempted again on the next login.
+      // Leave the local guest cart intact — the merge will retry on next login.
     }
-  }, [clearCart]);
+  }, [clearCart, loadServerCart]);
 
   return { mergeGuestCartWithServer };
 }

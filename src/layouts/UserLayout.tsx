@@ -44,6 +44,7 @@ import {
 import { useAuthStore } from '@/store/auth.store';
 import { useCartStore } from '@/store/cart.store';
 import { useWishlistStore } from '@/store/wishlist.store';
+import { addToServerCart } from '@/api/cart.api';
 import { useTheme } from '@/themes/theme.context';
 import { useI18n } from '@/i18n/i18n.context';
 
@@ -75,7 +76,18 @@ export default function UserLayout() {
 
   const [menuOpen, setMenuOpen] = useState(false);
 
-  const handleLogout = useCallback(() => {
+  const handleLogout = useCallback(async () => {
+    // Persist the current Zustand cart to the server before clearing local
+    // state. This ensures the cart survives the session so it is reloaded
+    // on the next login via useCartMerge.
+    const items = useCartStore.getState().items;
+    if (items.length > 0) {
+      await Promise.allSettled(
+        items.map(({ product, quantity }) =>
+          addToServerCart(product._id, quantity),
+        ),
+      );
+    }
     logout();
     navigate('/login', { replace: true });
   }, [logout, navigate]);

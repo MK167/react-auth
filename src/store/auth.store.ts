@@ -47,6 +47,11 @@
 import type { UserType } from '@/types/auth.types';
 import { cookieService } from '@/utils/cookie.service';
 import { create } from 'zustand';
+import { useCartStore } from '@/store/cart.store';
+import { useWishlistStore } from '@/store/wishlist.store';
+
+// Safe to import cart.store and wishlist.store here — neither of those modules
+// imports auth.store, so there is no circular dependency.
 
 // ---------------------------------------------------------------------------
 // Storage keys
@@ -265,6 +270,11 @@ export const useAuthStore = create<AuthState>((set) => ({
     cookieService.removeToken();
     clearPersistedUser();
     clearPersistedFeatureFlags();
+    // Clear frontend-only cart and wishlist state. Server-side data is
+    // intentionally preserved so the user's cart/wishlist survives logout
+    // and is reloaded from the server on the next login.
+    try { useCartStore.getState().clearCart(); } catch { /* non-fatal */ }
+    try { useWishlistStore.getState().clearItems(); } catch { /* non-fatal */ }
     set({ user: null, accessToken: null, featureFlags: defaultFeatureFlags() });
   },
 }));

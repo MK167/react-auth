@@ -47,10 +47,13 @@ import {
   RefreshCw,
   ChevronDown,
   ChevronUp,
+  Layers,
+  X,
 } from 'lucide-react';
 import { getProducts } from '@/api/products.api';
 import { getCategories } from '@/api/products.api';
 import axios from 'axios';
+import { useErrorStore } from '@/core/errors/error.store';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -110,11 +113,249 @@ type SimulationState = 'idle' | 'loading' | 'no-redirect';
  * Buttons that fire real Axios requests through the shared interceptors.
  * Only rendered when `import.meta.env.DEV === true`.
  */
+function CodeBlock({ children }: { children: string }) {
+  return (
+    <pre className="mt-2 p-3 bg-gray-950 dark:bg-black rounded-lg overflow-x-auto text-[11px] leading-relaxed font-mono text-green-300 whitespace-pre">
+      {children}
+    </pre>
+  );
+}
+
+function GuideStep({ number, title, children }: { number: string; title: string; children: React.ReactNode }) {
+  return (
+    <div className="flex gap-3">
+      <span className="flex-shrink-0 w-6 h-6 rounded-full bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400 text-xs font-bold flex items-center justify-center mt-0.5">
+        {number}
+      </span>
+      <div className="flex-1 min-w-0">
+        <p className="text-xs font-semibold text-gray-800 dark:text-gray-200">{title}</p>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function ErrorIntegrationGuide() {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <div className="border border-indigo-200 dark:border-indigo-800/60 rounded-2xl overflow-hidden">
+      <button
+        type="button"
+        onClick={() => setOpen((p) => !p)}
+        className="w-full flex items-center justify-between px-5 py-4 bg-indigo-50 dark:bg-indigo-900/20 hover:bg-indigo-100 dark:hover:bg-indigo-900/30 transition-colors"
+      >
+        <div className="flex items-center gap-2">
+          <Layers size={15} className="text-indigo-500" />
+          <span className="text-sm font-semibold text-indigo-800 dark:text-indigo-300">
+            Developer Guide — How to Use the Error System
+          </span>
+        </div>
+        {open
+          ? <ChevronUp size={15} className="text-indigo-400" />
+          : <ChevronDown size={15} className="text-indigo-400" />}
+      </button>
+
+      {open && (
+        <div className="p-5 bg-white dark:bg-gray-800 space-y-6 text-xs">
+
+          {/* ── 1. Push from any component ───────────────────────────── */}
+          <GuideStep number="1" title="Push an error from any component">
+            <p className="text-gray-500 dark:text-gray-400 mt-1 leading-relaxed">
+              Import <code className="bg-gray-100 dark:bg-gray-700 px-1 rounded">useErrorStore</code> and call{' '}
+              <code className="bg-gray-100 dark:bg-gray-700 px-1 rounded">pushError</code> inside any event handler or
+              catch block. The store routes it to the correct overlay automatically.
+            </p>
+            <CodeBlock>{`import { useErrorStore } from '@/core/errors/error.store';
+
+function MyComponent() {
+  const pushError = useErrorStore((s) => s.pushError);
+
+  const handleSave = async () => {
+    try {
+      await saveData();
+    } catch {
+      pushError('SERVER_ERROR');   // full-page overlay (default)
+    }
+  };
+}`}</CodeBlock>
+          </GuideStep>
+
+          {/* ── 2. Change display mode at the call site ──────────────── */}
+          <GuideStep number="2" title="Override the display mode at the call site">
+            <p className="text-gray-500 dark:text-gray-400 mt-1 leading-relaxed">
+              Every error code has a default display mode set in{' '}
+              <code className="bg-gray-100 dark:bg-gray-700 px-1 rounded">src/core/errors/error.config.ts</code>.
+              You can override it per call without touching the config:
+            </p>
+            <CodeBlock>{`// ORDER_NOT_FOUND defaults to PAGE — show as modal instead:
+pushError('ORDER_NOT_FOUND', { displayModeOverride: 'MODAL' });
+
+// SERVER_ERROR defaults to PAGE — show as a non-blocking toast:
+pushError('SERVER_ERROR', { displayModeOverride: 'TOAST' });
+
+// NETWORK_ERROR as inline banner inside a component:
+pushError('NETWORK_ERROR', { displayModeOverride: 'INLINE' });`}</CodeBlock>
+          </GuideStep>
+
+          {/* ── 3. Change the default globally ───────────────────────── */}
+          <GuideStep number="3" title="Change the default mode globally (affects every call site)">
+            <p className="text-gray-500 dark:text-gray-400 mt-1 leading-relaxed">
+              Edit <code className="bg-gray-100 dark:bg-gray-700 px-1 rounded">src/core/errors/error.config.ts</code> to
+              change what every occurrence of an error code shows by default — no call-site changes needed:
+            </p>
+            <CodeBlock>{`// src/core/errors/error.config.ts
+ORDER_NOT_FOUND: {
+  code: 'ORDER_NOT_FOUND',
+  displayMode: 'MODAL',    // ← was 'PAGE' — now every pushError('ORDER_NOT_FOUND')
+                           //   shows a modal unless overridden at the call site
+  iconName: 'PackageX',
+  ...
+},`}</CodeBlock>
+            <p className="text-gray-500 dark:text-gray-400 mt-2 leading-relaxed">
+              Use <strong className="text-gray-700 dark:text-gray-300">option 2</strong> for one-off overrides
+              (e.g. a background sync that shouldn't block the screen).
+              Use <strong className="text-gray-700 dark:text-gray-300">option 3</strong> when the design decision is
+              permanent for that error code everywhere.
+            </p>
+          </GuideStep>
+
+          {/* ── 4. Add a retry callback ──────────────────────────────── */}
+          <GuideStep number="4" title="Add a retry button to the error overlay">
+            <p className="text-gray-500 dark:text-gray-400 mt-1 leading-relaxed">
+              Pass <code className="bg-gray-100 dark:bg-gray-700 px-1 rounded">onRetry</code> and the primary action
+              button changes to "Try again". The callback fires when the user clicks it.
+            </p>
+            <CodeBlock>{`const { pushError, clearAll } = useErrorStore();
+
+// In a data-fetching function:
+pushError('NETWORK_ERROR', {
+  onRetry: () => {
+    clearAll();          // dismiss the overlay first
+    void fetchData();    // re-run the failed operation
+  },
+});`}</CodeBlock>
+          </GuideStep>
+
+          {/* ── 5. Use outside React (interceptor / util) ─────────────── */}
+          <GuideStep number="5" title="Push an error outside React (Axios interceptor, utility functions)">
+            <p className="text-gray-500 dark:text-gray-400 mt-1 leading-relaxed">
+              Outside React components — in Axios interceptors, service files, or utilities — use{' '}
+              <code className="bg-gray-100 dark:bg-gray-700 px-1 rounded">.getState()</code> to access the store
+              imperatively without a hook:
+            </p>
+            <CodeBlock>{`import { useErrorStore } from '@/core/errors/error.store';
+
+// In src/api/base/axios.ts (interceptor):
+useErrorStore.getState().pushError('SERVER_ERROR', {
+  onRetry: () => window.location.reload(),
+});`}</CodeBlock>
+          </GuideStep>
+
+          {/* ── 6. Skip the global handler per-request ───────────────── */}
+          <GuideStep number="6" title="Skip the global handler for one specific request">
+            <p className="text-gray-500 dark:text-gray-400 mt-1 leading-relaxed">
+              Pass <code className="bg-gray-100 dark:bg-gray-700 px-1 rounded">skipGlobalErrorHandler: true</code> in
+              the request config to prevent the Axios interceptor from pushing to the error store.
+              The error is re-thrown so the calling component handles it directly.
+            </p>
+            <CodeBlock>{`import { authUrl } from '@/config/Define';
+
+try {
+  const res = await authUrl.get('/some-optional-data', {
+    skipGlobalErrorHandler: true,   // interceptor won't push an overlay
+  });
+} catch (err) {
+  // Handle locally — e.g. show a small inline banner, ignore it, etc.
+  setLocalError('Could not load optional section.');
+}`}</CodeBlock>
+          </GuideStep>
+
+          {/* ── 7. Read INLINE errors inside a component ─────────────── */}
+          <GuideStep number="7" title="Consume an INLINE error inside a component">
+            <p className="text-gray-500 dark:text-gray-400 mt-1 leading-relaxed">
+              INLINE errors are NOT rendered by <code className="bg-gray-100 dark:bg-gray-700 px-1 rounded">GlobalErrorRenderer</code>.
+              Your component must subscribe to <code className="bg-gray-100 dark:bg-gray-700 px-1 rounded">inlineError</code> and render
+              its own banner. This is ideal for form-section errors that should appear near the triggering UI.
+            </p>
+            <CodeBlock>{`const inlineError  = useErrorStore((s) => s.inlineError);
+const clearInline  = useErrorStore((s) => s.clearInlineError);
+
+// Somewhere that can fail:
+pushError('VALIDATION_ERROR', { displayModeOverride: 'INLINE' });
+
+// In JSX:
+{inlineError && (
+  <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+    {translate(inlineError.config.titleKey)}
+    <button onClick={clearInline}>✕</button>
+  </div>
+)}`}</CodeBlock>
+          </GuideStep>
+
+          {/* ── 8. Dismiss / clear ───────────────────────────────────── */}
+          <GuideStep number="8" title="Dismiss errors programmatically">
+            <CodeBlock>{`const { clearAll, clearPageError, clearModalError, removeToast } = useErrorStore();
+
+clearAll();              // dismiss every active error at once
+clearPageError();        // dismiss only the fullscreen PAGE overlay
+clearModalError();       // dismiss only the MODAL dialog
+removeToast(toast.id);   // dismiss one specific toast by ID`}</CodeBlock>
+          </GuideStep>
+
+          {/* ── Quick reference table ─────────────────────────────────── */}
+          <div className="pt-2">
+            <p className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wide mb-2">
+              Quick reference — when to use each display mode
+            </p>
+            <div className="overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-700">
+              <table className="w-full text-xs">
+                <thead className="bg-gray-50 dark:bg-gray-750 border-b border-gray-200 dark:border-gray-700">
+                  <tr>
+                    {['Mode', 'When to use', 'User can dismiss?', 'Blocks navigation?'].map((h) => (
+                      <th key={h} className="px-3 py-2.5 text-start font-semibold text-gray-500 dark:text-gray-400">{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+                  {[
+                    ['PAGE',   'Critical failure that makes the current view unusable (network down, 5xx, forbidden)', 'Yes — via action button', 'Yes — full overlay'],
+                    ['MODAL',  'Action required before continuing (session expired, confirm destructive action)', 'Yes — backdrop click or Esc', 'Yes — dialog overlay'],
+                    ['TOAST',  'Background operation failed non-critically (auto-save, analytics, optional fetch)', 'Yes — dismiss button or auto (4 s)', 'No — notification only'],
+                    ['INLINE', 'Field/section-level error shown near the triggering UI (form validation, partial failure)', 'Component handles it', 'No — rendered inside component'],
+                  ].map(([mode, when, dismiss, blocks]) => (
+                    <tr key={mode} className="bg-white dark:bg-gray-800">
+                      <td className="px-3 py-2.5">
+                        <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold font-mono ${
+                          mode === 'PAGE'   ? 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400' :
+                          mode === 'MODAL'  ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400' :
+                          mode === 'TOAST'  ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400' :
+                                             'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
+                        }`}>{mode}</span>
+                      </td>
+                      <td className="px-3 py-2.5 text-gray-600 dark:text-gray-300 leading-relaxed">{when}</td>
+                      <td className="px-3 py-2.5 text-gray-500 dark:text-gray-400">{dismiss}</td>
+                      <td className="px-3 py-2.5 text-gray-500 dark:text-gray-400">{blocks}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ErrorSimulatorPanel() {
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [simState, setSimState] = useState<SimulationState>('idle');
   const [simResult, setSimResult] = useState<string | null>(null);
+  const pushError = useErrorStore((s) => s.pushError);
+  const clearAll  = useErrorStore((s) => s.clearAll);
 
   // ── Real interceptor tests ─────────────────────────────────────────────────
 
@@ -334,7 +575,74 @@ function ErrorSimulatorPanel() {
             )}
           </div>
 
-          {/* Interceptor behaviour table */}
+          {/* ── Section C: Global Error Store ──────────────────────────────── */}
+          <div>
+            <p className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wide mb-1">
+              C — Global Error Store (modal / toast / page overlay)
+            </p>
+            <p className="text-xs text-gray-400 dark:text-gray-500 mb-3">
+              These call{' '}
+              <code className="bg-gray-100 dark:bg-gray-700 px-1 rounded">useErrorStore().pushError()</code>{' '}
+              directly — the same path the Axios interceptor uses after classifying an error.
+              The page stays open so you can see the overlay on top of it.
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              {/* MODAL */}
+              <button
+                type="button"
+                onClick={() => pushError('SESSION_EXPIRED')}
+                className="flex items-center gap-2 px-4 py-3 rounded-xl border border-purple-200 dark:border-purple-800 bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 text-sm font-medium hover:bg-purple-100 dark:hover:bg-purple-900/40 transition-colors"
+              >
+                <Layers size={14} />
+                MODAL — Session Expired
+              </button>
+              <button
+                type="button"
+                onClick={() => pushError('ORDER_NOT_FOUND', { displayModeOverride: 'MODAL' })}
+                className="flex items-center gap-2 px-4 py-3 rounded-xl border border-purple-200 dark:border-purple-800 bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 text-sm font-medium hover:bg-purple-100 dark:hover:bg-purple-900/40 transition-colors"
+              >
+                <Layers size={14} />
+                MODAL — Order Not Found
+              </button>
+              {/* TOAST */}
+              <button
+                type="button"
+                onClick={() => pushError('VALIDATION_ERROR')}
+                className="flex items-center gap-2 px-4 py-3 rounded-xl border border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-300 text-sm font-medium hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-colors"
+              >
+                <AlertTriangle size={14} />
+                TOAST — Validation Error
+              </button>
+              <button
+                type="button"
+                onClick={() => pushError('SERVER_ERROR', { displayModeOverride: 'TOAST' })}
+                className="flex items-center gap-2 px-4 py-3 rounded-xl border border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-300 text-sm font-medium hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-colors"
+              >
+                <AlertTriangle size={14} />
+                TOAST — Server Error
+              </button>
+              {/* PAGE overlay */}
+              <button
+                type="button"
+                onClick={() => pushError('FORBIDDEN')}
+                className="flex items-center gap-2 px-4 py-3 rounded-xl border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 text-sm font-medium hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors"
+              >
+                <ServerCrash size={14} />
+                PAGE — Forbidden
+              </button>
+              {/* Clear */}
+              <button
+                type="button"
+                onClick={clearAll}
+                className="flex items-center gap-2 px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-600 text-gray-500 dark:text-gray-400 text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+              >
+                <X size={14} />
+                Clear All Errors
+              </button>
+            </div>
+          </div>
+
+          {/* Interceptor behaviour table — reference only, not interactive */}
           <div>
             <p className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wide mb-2">
               Interceptor behaviour reference
@@ -363,7 +671,7 @@ function ErrorSimulatorPanel() {
                     ['HTTP 404 / 409 / 429 / other 4xx', 'unknown', 'Re-rejected → component handles inline'],
                     ['Request cancelled (AbortController)', 'unknown', 'Silent — no redirect, no toast'],
                   ].map(([src, type, action]) => (
-                    <tr key={src} className="bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-750">
+                    <tr key={src} className="bg-white dark:bg-gray-800">
                       <td className="px-4 py-2.5 text-gray-600 dark:text-gray-300">{src}</td>
                       <td className="px-4 py-2.5">
                         <span
@@ -504,6 +812,9 @@ export default function DashboardPage() {
 
       {/* Error Simulator — DEV only */}
       {import.meta.env.DEV && <ErrorSimulatorPanel />}
+
+      {/* Developer integration guide — DEV only */}
+      {import.meta.env.DEV && <ErrorIntegrationGuide />}
     </div>
   );
 }

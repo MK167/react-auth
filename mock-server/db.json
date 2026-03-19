@@ -43,6 +43,14 @@
       "_id": "cat004",
       "name": "Home",
       "description": "Home decor and appliances"
+    },
+    {
+      "id": "8576f18688ba8036c54da66d",
+      "_id": "8576f18688ba8036c54da66d",
+      "name": "test",
+      "description": "",
+      "slug": "test",
+      "createdAt": "2026-03-19T07:33:44.178Z"
     }
   ],
   "products": [

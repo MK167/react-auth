@@ -29,7 +29,8 @@
 21. [Form Validation](#21-form-validation)
 22. [Mock Server](#22-mock-server)
 23. [Build & Bundle Splitting](#23-build--bundle-splitting)
-24. [Development Guidelines](#24-development-guidelines)
+24. [Cart Persistence & Wishlist Sync](#24-cart-persistence--wishlist-sync)
+25. [Development Guidelines](#25-development-guidelines)
 
 ---
 
@@ -630,7 +631,7 @@ Both `AdminLayout` and `UserLayout` are wrapped in an `ErrorBoundary` at the rou
 | `setAuth(user, token)` | Called after successful login. Persists user, stores token in cookie. |
 | `setAccessToken(token)` | Updates token after silent refresh. Does not update `user`. |
 | `setFeatureFlags(flags)` | Replaces feature flags map. Called after login. |
-| `logout()` | Clears all state, removes persisted data, clears cookie. |
+| `logout()` | Clears all state, removes persisted data, clears cookie. Also calls `useCartStore.getState().clearCart()` and `useWishlistStore.getState().clearItems()` to clear frontend-only state. Server-side cart and wishlist are intentionally preserved so the user's items survive logout and are reloaded on next login. |
 
 ### Why persist `user` but not `accessToken`?
 
@@ -643,6 +644,8 @@ In development builds (`import.meta.env.DEV`), `errorPlayground` is enabled so d
 ### Circular dependency prevention
 
 `auth.store.ts` must NOT import `authUrl` from `src/config/Define.ts`. The Axios instance reads `useAuthStore.getState()` internally. Importing `api` into the store would create a circular module dependency that breaks Vite HMR and the production bundle.
+
+`auth.store.ts` safely imports `useCartStore` and `useWishlistStore` (static ES imports) because neither of those stores imports `auth.store.ts`. The `logout()` action calls `useCartStore.getState().clearCart()` and `useWishlistStore.getState().clearItems()` imperatively — no React hook rules are violated since these are plain function calls outside the render cycle.
 
 ### Token refresh flow
 
@@ -680,13 +683,21 @@ authUrl.get('/endpoint', { showGlobalLoader: false })
 Queues concurrent 401 responses, fires a single refresh-token request, then retries all queued requests with the new token. On refresh failure, calls `logout()` and hard-navigates to `/login`.
 
 #### 4. Global error store integration
-Intercepts network failures and 5xx/403 errors, resolves an `ErrorCode`, and pushes it to the global error store. `GlobalErrorRenderer` handles display without hard navigation.
+Intercepts network failures, 5xx server errors, 403 Forbidden, and unhandled 4xx errors (404, 409, 429, etc.), resolves an `ErrorCode`, and pushes it to the global error store. `GlobalErrorRenderer` handles display without hard navigation.
 
 Does **not** push to the error store for:
 - `401` — handled by silent refresh
-- `400` / `422` — validation errors, handled by form components
+- `400` / `422` — validation errors, handled by form components inline
 - Cancelled requests (`axios.isCancel`)
 - Requests with `skipGlobalErrorHandler: true`
+
+The condition that triggers global error routing:
+```ts
+// Fires for: network errors, 5xx, 403, and any 4xx not handled locally
+type === 'network' ||
+type === 'server'  ||
+(status >= 400 && status < 500 && status !== 400 && status !== 401 && status !== 422)
+```
 
 Per-request opt-out:
 ```ts
@@ -746,7 +757,8 @@ Shopping cart state persisted to `localStorage`.
 | `addItem(product)` | Adds item or increments quantity |
 | `removeItem(productId)` | Removes item entirely |
 | `updateQuantity(productId, qty)` | Sets exact quantity |
-| `clearCart()` | Empties cart |
+| `clearCart()` | Empties the Zustand cart (and clears `localStorage`). Called on logout and after server cart merge. |
+| `loadServerCart(items)` | Replaces the local cart with the server's authoritative list. Called by `useCartMerge` after login. |
 
 Cart item count badge subscribes with a selector to avoid unnecessary re-renders:
 
@@ -759,6 +771,13 @@ const cartCount = useCartStore((s) =>
 ### `useWishlistStore` — `src/store/wishlist.store.ts`
 
 Wishlist state persisted to `localStorage`. Syncs with backend on login via `useWishlistSync` hook.
+
+| Action | Description |
+|---|---|
+| `addItem(productId)` | Adds product ID to local wishlist |
+| `removeItem(productId)` | Removes product ID |
+| `clearItems()` | Empties the wishlist. Called on logout. |
+| `setItemsFromServer(productIds)` | Replaces local wishlist with the server's authoritative list. Called by `useWishlistSync` after login sync so the navbar badge and product-card hearts stay accurate. |
 
 ### `useUiStore` — `src/store/ui.store.ts`
 
@@ -1042,6 +1061,28 @@ Storefront shell. Structure:
 
 Footer is sticky to the bottom of the viewport on short pages via `min-h-screen flex flex-col` with `flex-1` on main.
 
+#### Logout flow (cart preservation)
+
+`handleLogout` is async. Before calling `logout()`, it pushes the current Zustand cart to the server so the items survive the session:
+
+```ts
+const handleLogout = useCallback(async () => {
+  // Save current cart to server so it persists across sessions
+  const items = useCartStore.getState().items;
+  if (items.length > 0) {
+    await Promise.allSettled(
+      items.map(({ product, quantity }) =>
+        addToServerCart(product._id, quantity)
+      )
+    );
+  }
+  logout();                               // clears Zustand + cookie + localStorage
+  navigate('/login', { replace: true });
+}, [logout, navigate]);
+```
+
+This ensures: User A logs in → adds items → logs out → items are on the server → User A logs in again → `useCartMerge` reloads them automatically.
+
 ### `AdminLayout` — `src/layouts/AdminLayout.tsx`
 
 Admin panel shell. Structure:
@@ -1119,6 +1160,24 @@ PENDING:   { labelKey: 'admin.orders.status.pending', ... }
 DELIVERED: { labelKey: 'admin.orders.status.delivered', ... }
 CANCELLED: { labelKey: 'admin.orders.status.cancelled', ... }
 ```
+
+#### Null-safety on order financials
+
+All monetary `.toFixed()` calls guard against `undefined` with `?? 0`:
+
+```ts
+(order.discountedOrderPrice ?? order.orderPrice ?? 0).toFixed(2)  // displayed total
+(order.orderPrice ?? 0).toFixed(2)                                 // subtotal
+(item.product?.price ?? 0).toFixed(2)                             // line item price
+```
+
+Customer fields use optional chaining + fallbacks:
+```ts
+order.customer?.username ?? '—'
+order.customer?.email ?? ''
+```
+
+These guards protect against both legacy seed data (missing fields) and mock server responses before `normalizeOrder()` runs.
 
 ### Error Playground — `/admin/error-playground`
 
@@ -1292,6 +1351,43 @@ server: {
 
 This means API calls from the browser appear as `/api/v1/...` in the Network tab — identical to production — and the mock server intercepts them transparently.
 
+### Cart endpoints
+
+The mock server implements per-user server-side cart storage with full product population:
+
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/api/v1/ecommerce/cart` | Fetch authenticated user's cart |
+| `POST` | `/api/v1/ecommerce/cart/item/:productId` | Add or set item quantity (upsert with stock clamping) |
+| `PATCH` | `/api/v1/ecommerce/cart/item/:productId` | Update existing item quantity |
+| `DELETE` | `/api/v1/ecommerce/cart/item/:productId` | Remove single item |
+| `DELETE` | `/api/v1/ecommerce/cart` | Clear all items for the user |
+
+All cart responses are built by `buildCartResponse(db, userId)` which populates full product objects and computes `cartTotal` and `discountedTotal`.
+
+### Wishlist endpoints
+
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/api/v1/ecommerce/profile/wishlist` | Fetch authenticated user's wishlist |
+| `POST` | `/api/v1/ecommerce/profile/wishlist/:productId` | Toggle item (add if absent, remove if present) |
+
+All wishlist responses are built by `buildWishlistResponse(db, userId)` which returns the FreeAPI-compatible shape:
+```json
+{ "wishlistItems": [{ "_id": "...", "product": { "_id": "...", "name": "...", ... } }], "wishlistItemsCount": 2 }
+```
+
+### Order normalization
+
+`normalizeOrder(order, db)` runs on every order returned from the mock server. It:
+
+- Maps legacy `totalAmount` → `orderPrice` / `discountedOrderPrice` (fixes `.toFixed()` crash in AdminOrdersPage)
+- Populates the `customer` object (`{ _id, username, email, role }`) from `db.users`
+- Enriches each line item with the full product object from `db.products`
+- Adds missing fields (`coupon`, `paymentProvider`, `paymentId`, `isPaymentDone`, `updatedAt`) with safe defaults
+
+This normalization means the frontend can always call `.toFixed()` on order totals without null guards — though the component adds them defensively as a belt-and-suspenders measure.
+
 ---
 
 ## 23. Build & Bundle Splitting
@@ -1326,7 +1422,76 @@ Every page is `React.lazy()` — each page's JavaScript is only downloaded on fi
 
 ---
 
-## 24. Development Guidelines
+## 24. Cart Persistence & Wishlist Sync
+
+### Cart lifecycle
+
+| Phase | Storage | Mechanism |
+|---|---|---|
+| Guest (unauthenticated) | `localStorage` | Zustand `persist` middleware |
+| Authenticated | Server + Zustand | Login merge + `loadServerCart()` |
+| Post-checkout | Cleared | `clearCart()` + `clearServerCart()` |
+| Logout | Zustand cleared, server preserved | `logout()` clears Zustand only; server cart kept for next login |
+
+### Login merge — `src/hooks/useCartMerge.ts`
+
+Called fire-and-forget immediately after `setAuth(user, token)`:
+
+```
+1. getServerCart()                   ← always fetch, even with no guest items
+                                       (fixes: returning users saw empty cart)
+2. if guestItems.length > 0:
+   for each guestItem:
+     if already on server → updateServerCartItem(sum, capped at stock)
+     if new              → addToServerCart(qty)
+   clearCart()                        ← wipe localStorage guest cart
+   getServerCart()                    ← reload authoritative post-merge state
+3. loadServerCart(serverItems)        ← populate Zustand from server truth
+```
+
+**Key bug fix:** The original implementation returned early when `guestItems.length === 0`, which meant a returning authenticated user never had their server cart loaded. The fix: always proceed to the load step regardless of guest item count.
+
+**Conflict resolution:**
+
+| Scenario | Resolution |
+|---|---|
+| Same product in both carts | Sum quantities, cap at `product.stock` |
+| Product only in guest cart | Add to server with guest quantity |
+| Product only in server cart | Untouched (returned in load step) |
+| Product out of stock on server | `addToServerCart` fails silently via `allSettled` |
+
+### Logout preservation — `src/layouts/UserLayout.tsx`
+
+Before calling `logout()`, `handleLogout` pushes the current Zustand cart items to the server with `Promise.allSettled()`. If the save fails (network error), the items may be lost — but the user initiated the logout, so this is acceptable. This ensures:
+
+```
+User A: add items → logout → items saved to server
+User B: login on same browser → has own server cart, A's items unaffected
+User A: login again → useCartMerge reloads their server cart
+```
+
+### Wishlist sync — `src/hooks/useWishlistSync.ts`
+
+Called fire-and-forget immediately after `setAuth(user, token)`:
+
+```
+1. Snapshot localIds from Zustand (guest wishlist before sync)
+2. getWishlist()                     ← fetch current server wishlist
+3. idsToAdd = localIds − serverIds   ← diff: avoid double-toggle
+4. Promise.allSettled(
+     idsToAdd.map(id => toggleWishlistItem(id))
+   )
+5. setItemsFromServer([...serverIds, ...idsToAdd])
+   ← replaces local store with full server list
+```
+
+**Why the diff step is critical:** The FreeAPI wishlist endpoint is a **toggle** — calling it for an already-wishlisted product *removes* it. Without the diff, syncing a product already on the server would silently delete it.
+
+**Why `setItemsFromServer` instead of `clearItems`:** The original `clearItems()` call left the local store empty after sync, causing the navbar wishlist badge to show 0 and `WishlistPage` to display the empty state. `setItemsFromServer` replaces the local store with server IDs so the badge count and product-card hearts are accurate immediately.
+
+---
+
+## 25. Development Guidelines
 
 ### Adding a new page
 
@@ -1392,4 +1557,4 @@ The project runs with `erasableSyntaxOnly: true` in tsconfig. This means:
 
 ---
 
-*Last updated: 2026-03-19*
+*Last updated: 2026-03-19 — Added: cart persistence strategy, wishlist sync strategy, mock server cart/wishlist/order CRUD, Axios 4xx global routing, auth store logout cart/wishlist clearing, UserLayout async logout, AdminOrdersPage null-safety*

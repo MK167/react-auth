@@ -158,7 +158,7 @@ function OrderDetailModal({
               Order #{order._id.slice(-8).toUpperCase()}
             </h2>
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-              {order.customer.username} · {order.customer.email} ·{' '}
+              {order.customer?.username ?? '—'} · {order.customer?.email ?? ''} ·{' '}
               {new Date(order.createdAt).toLocaleDateString('en-US', {
                 year: 'numeric',
                 month: 'short',
@@ -197,11 +197,11 @@ function OrderDetailModal({
                   {item.product.name}
                 </p>
                 <p className="text-xs text-gray-400 mt-0.5">
-                  {translate('admin.orders.modal.qty')} {item.quantity} &nbsp;·&nbsp; ${item.product.price.toFixed(2)}
+                  {translate('admin.orders.modal.qty')} {item.quantity} &nbsp;·&nbsp; ${(item.product?.price ?? 0).toFixed(2)}
                 </p>
               </div>
               <span className="text-sm font-semibold text-gray-900 dark:text-white flex-shrink-0">
-                ${(item.product.price * item.quantity).toFixed(2)}
+                ${((item.product?.price ?? 0) * item.quantity).toFixed(2)}
               </span>
             </div>
           ))}
@@ -209,21 +209,21 @@ function OrderDetailModal({
 
         {/* Footer — pricing + payment */}
         <div className="px-6 py-4 border-t border-gray-200 dark:border-gray-700 space-y-1.5 flex-shrink-0">
-          {order.orderPrice !== order.discountedOrderPrice && (
+          {(order.orderPrice ?? 0) !== (order.discountedOrderPrice ?? 0) && (
             <div className="flex justify-between text-sm text-gray-500 dark:text-gray-400">
               <span>{translate('admin.orders.modal.subtotal')}</span>
-              <span>${order.orderPrice.toFixed(2)}</span>
+              <span>${(order.orderPrice ?? 0).toFixed(2)}</span>
             </div>
           )}
           {order.coupon && (
             <div className="flex justify-between text-sm text-green-600 dark:text-green-400">
               <span>Coupon ({order.coupon.couponCode})</span>
-              <span>−${(order.orderPrice - order.discountedOrderPrice).toFixed(2)}</span>
+              <span>−${((order.orderPrice ?? 0) - (order.discountedOrderPrice ?? 0)).toFixed(2)}</span>
             </div>
           )}
           <div className="flex justify-between text-base font-bold text-gray-900 dark:text-white pt-1 border-t border-gray-100 dark:border-gray-700">
             <span>{translate('admin.orders.modal.total')}</span>
-            <span>${order.discountedOrderPrice.toFixed(2)}</span>
+            <span>${(order.discountedOrderPrice ?? order.orderPrice ?? 0).toFixed(2)}</span>
           </div>
           <div className="flex items-center justify-between pt-2">
             <span className="text-xs text-gray-400">
@@ -453,10 +453,10 @@ export default function AdminOrdersPage() {
                       {/* Customer */}
                       <td className="px-4 py-3 hidden sm:table-cell">
                         <p className="text-xs font-medium text-gray-900 dark:text-white line-clamp-1">
-                          {order.customer.username}
+                          {order.customer?.username ?? '—'}
                         </p>
                         <p className="text-xs text-gray-400 line-clamp-1">
-                          {order.customer.email}
+                          {order.customer?.email ?? ''}
                         </p>
                       </td>
 
@@ -469,7 +469,7 @@ export default function AdminOrdersPage() {
 
                       {/* Total */}
                       <td className="px-4 py-3 font-semibold text-gray-900 dark:text-white">
-                        ${order.discountedOrderPrice.toFixed(2)}
+                        ${(order.discountedOrderPrice ?? order.orderPrice ?? 0).toFixed(2)}
                       </td>
 
                       {/* Status badge */}

@@ -81,6 +81,16 @@ type CartState = {
   clearCart: () => void;
 
   /**
+   * Replaces the entire cart with items loaded from the server.
+   * Called after login to hydrate the Zustand store from the authenticated
+   * user's server-side cart, so the cart badge and CartPage reflect the
+   * persisted server state without requiring a page refresh.
+   *
+   * @param serverItems - The CartItem array returned by `getServerCart()`.
+   */
+  loadServerCart: (serverItems: CartItem[]) => void;
+
+  /**
    * Returns the total number of individual units across all cart lines
    * (sum of `item.quantity` for each line).
    */
@@ -168,6 +178,8 @@ export const useCartStore = create<CartState>()(
       },
 
       clearCart: () => set({ items: [] }),
+
+      loadServerCart: (serverItems) => set({ items: serverItems }),
 
       getTotalItems: () =>
         get().items.reduce((sum, item) => sum + item.quantity, 0),

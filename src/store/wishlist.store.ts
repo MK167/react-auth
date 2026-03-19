@@ -103,6 +103,19 @@ type WishlistState = {
    * Used by `useWishlistSync` to compute the diff against the server list.
    */
   getProductIds: () => string[];
+
+  /**
+   * Replaces the local wishlist with the authoritative server list after a
+   * successful login sync. This keeps the navbar badge count and product-card
+   * heart icons accurate for authenticated users without requiring WishlistPage
+   * to maintain a separate server-side state slice.
+   *
+   * Stores items as `{ productId, addedAt: '' }` — the `addedAt` timestamp
+   * is unknown for server-synced items, but it is not rendered in the UI.
+   *
+   * @param productIds - Array of productId strings from the server wishlist.
+   */
+  setItemsFromServer: (productIds: string[]) => void;
 };
 
 // ---------------------------------------------------------------------------
@@ -163,6 +176,14 @@ export const useWishlistStore = create<WishlistState>()(
       clearItems: () => set({ items: [] }),
 
       getProductIds: () => get().items.map((item) => item.productId),
+
+      setItemsFromServer: (productIds) =>
+        set({
+          items: productIds.map((productId) => ({
+            productId,
+            addedAt: '',
+          })),
+        }),
     }),
     {
       name: 'wishlist-storage',
