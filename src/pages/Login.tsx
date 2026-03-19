@@ -13,12 +13,58 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Mail, Lock } from "lucide-react";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
-import { Link, useNavigate, useLocation } from "react-router-dom";
+import { Link, useNavigate, useLocation, useSearchParams } from "react-router-dom";
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Validates and returns a safe redirect destination from the `targetUrl`
+ * query param or the legacy `state.from` pattern.
+ *
+ * Security rules:
+ * - Must be a relative path (starts with `/`)
+ * - Cannot loop back to `/login` or `/register`
+ * - URL-decoded to handle `encodeURIComponent` from ProtectedRoute
+ */
+function resolveRedirectTarget(
+  targetUrlParam: string | null,
+  stateFrom: string | undefined,
+): string | null {
+  // 1. Try ?targetUrl= query param (new pattern from ProtectedRoute)
+  if (targetUrlParam) {
+    try {
+      const decoded = decodeURIComponent(targetUrlParam);
+      if (
+        decoded.startsWith('/') &&
+        decoded !== '/login' &&
+        decoded !== '/register'
+      ) {
+        return decoded;
+      }
+    } catch {
+      // Malformed URL encoding — ignore and fall through
+    }
+  }
+
+  // 2. Try state.from (legacy pattern, kept for backwards compat)
+  if (stateFrom && stateFrom !== '/login' && stateFrom !== '/register') {
+    return stateFrom;
+  }
+
+  return null;
+}
+
+// ---------------------------------------------------------------------------
+// Component
+// ---------------------------------------------------------------------------
 
 export default function Login() {
   const { setAuth } = useAuthStore();
   const navigate = useNavigate();
   const location = useLocation();
+  const [searchParams] = useSearchParams();
   const { mergeGuestCartWithServer } = useCartMerge();
   const { syncWishlistAfterLogin } = useWishlistSync();
   const { t } = useI18n();
@@ -55,11 +101,17 @@ export default function Login() {
         prefetchAdminDashboard();
       }
 
-      const from =
-        (location.state as { from?: { pathname?: string } } | null)?.from?.pathname;
+      // ── Resolve post-login destination ──────────────────────────────────
+      // Priority: ?targetUrl= (deep link) > state.from (legacy) > role default
 
-      if (from && from !== "/login" && from !== "/register") {
-        navigate(from, { replace: true });
+      const targetUrlParam = searchParams.get('targetUrl');
+      const stateFrom = (location.state as { from?: { pathname?: string } } | null)
+        ?.from?.pathname;
+
+      const redirectTarget = resolveRedirectTarget(targetUrlParam, stateFrom);
+
+      if (redirectTarget) {
+        navigate(redirectTarget, { replace: true });
       } else if (user.role === "ADMIN" || user.role === "MANAGER") {
         navigate("/admin/products", { replace: true });
       } else {

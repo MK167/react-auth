@@ -278,7 +278,7 @@ export default function EditProductPage() {
               type="number"
               step="0.01"
               min="0"
-              {...register('price')}
+              {...register('price', { valueAsNumber: true })}
               aria-invalid={errors.price ? true : undefined}
               className="w-full px-3 py-2.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
             />
@@ -293,7 +293,7 @@ export default function EditProductPage() {
               id="stock"
               type="number"
               min="0"
-              {...register('stock')}
+              {...register('stock', { valueAsNumber: true })}
               aria-invalid={errors.stock ? true : undefined}
               className="w-full px-3 py-2.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
             />

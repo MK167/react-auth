@@ -189,6 +189,8 @@ export const en = {
     cancel: 'Cancel',
     save: 'Save',
     back: 'Back',
+    retry: 'Try again',
+    goHome: 'Go Home',
   },
 
   // ---- Auth pages ----------------------------------------------------------
@@ -216,6 +218,57 @@ export const en = {
       signIn: 'Sign in',
     },
   },
+
+  // ---- Global error system -------------------------------------------------
+  errors: {
+    orderNotFound: {
+      title: 'Order Not Found',
+      description: 'The order you are looking for does not exist or has been removed. Please check your orders list.',
+    },
+    productNotFound: {
+      title: 'Product Not Found',
+      description: 'This product is no longer available. Browse our catalogue to find something you will love.',
+    },
+    unauthorized: {
+      title: 'Unauthorized',
+      description: 'You need to sign in to access this page. Please log in and try again.',
+    },
+    forbidden: {
+      title: 'Access Denied',
+      description: 'You do not have permission to view this page. Contact your administrator if you believe this is an error.',
+    },
+    sessionExpired: {
+      title: 'Session Expired',
+      description: 'Your session has expired for security reasons. Please sign in again to continue.',
+    },
+    serverError: {
+      title: 'Server Error',
+      description: 'Something went wrong on our end. Our team has been notified and is working on a fix. Please try again shortly.',
+    },
+    networkError: {
+      title: 'Connection Error',
+      description: "We couldn't reach our servers. Please check your internet connection and try again.",
+    },
+    featureDisabled: {
+      title: 'Feature Not Available',
+      description: 'This feature is not currently enabled for your account. Contact support for more information.',
+    },
+    validationError: {
+      title: 'Validation Error',
+      description: 'Some of the information you entered is invalid. Please check your input and try again.',
+    },
+    resourceNotFound: {
+      title: 'Not Found',
+      description: 'The resource you are looking for does not exist or may have been moved.',
+    },
+    unknownError: {
+      title: 'Something Went Wrong',
+      description: 'An unexpected error occurred. If this keeps happening, please contact support.',
+    },
+  },
+
+  // ---- Common actions (used by error buttons) ------------------------------
+  // common already exists below — these keys are added as new entries there
 
   // ---- Admin panel ---------------------------------------------------------
   admin: {

@@ -33,12 +33,12 @@ export const productSchema = z.object({
     .min(10, 'Description must be at least 10 characters')
     .max(1000, 'Description must be 1 000 characters or fewer'),
 
-  price: z.coerce
-    .number({ invalid_type_error: 'Price must be a number' })
+  price: z
+    .number({ error: 'Price must be a number' })
     .positive('Price must be greater than zero'),
 
-  stock: z.coerce
-    .number({ invalid_type_error: 'Stock must be a number' })
+  stock: z
+    .number({ error: 'Stock must be a number' })
     .int('Stock must be a whole number')
     .min(0, 'Stock cannot be negative'),
 

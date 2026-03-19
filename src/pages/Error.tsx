@@ -1,148 +1,199 @@
 /**
- * @fileoverview General Error Page.
+ * @fileoverview Reusable Error Page component.
  *
- * ## UX rationale
+ * ## Two rendering modes
  *
- * Generic error messages like "Something went wrong" leave users confused and
- * stranded — they don't know if the problem is their internet connection, the
- * server, or a bug. A purpose-built error page:
+ * ### 1. URL-param mode (hard navigation from Axios interceptor)
  *
- * 1. **Names the problem clearly** — "Connection Error" vs "Server Error" sets
- *    correct expectations about what the user can do next.
- * 2. **Provides actionable recovery** — retry the last action, or go home.
- * 3. **Maintains trust** — a polished error page signals that the team
- *    anticipated failures and handled them gracefully.
+ * The Axios interceptor previously navigated here via `window.location.assign()`.
+ * This mode is kept for backwards-compatibility when direct URL access is needed:
  *
- * ## URL contract
+ * ```
+ * /error?type=network  → Connection Error
+ * /error?type=server   → Server Error
+ * /error               → Unknown error
+ * ```
  *
- * The Axios interceptor navigates here with a `?type=` query param:
+ * ### 2. Prop mode (programmatic render from GlobalErrorRenderer or tests)
  *
- * - `/error?type=network` — device is offline or server unreachable.
- * - `/error?type=server`  — server returned 500 / 502 / 503 / 504.
- * - `/error`              — unknown error (no or invalid type param).
+ * Pass props directly to display any error without URL navigation:
  *
- * Reading the type from the URL (rather than component props or store state)
- * makes the error page bookmarkable, shareable in bug reports, and compatible
- * with hard-navigation from interceptors that run outside the React tree.
+ * ```tsx
+ * <ErrorPage
+ *   code="ORDER_NOT_FOUND"
+ *   primaryAction={{ label: 'View Orders', redirectTo: '/orders', variant: 'primary' }}
+ * />
+ * ```
  *
- * ## Accessibility
+ * Props take precedence over URL params. If neither is provided, falls back to
+ * the `?type=` URL param, then to the `unknown` fallback.
  *
- * - `role="alert"` on the error description announces it immediately to
- *   screen readers when the page mounts.
- * - `aria-live="assertive"` ensures the status is re-read if the type changes
- *   without a full page reload.
- * - Both action buttons have explicit, descriptive labels.
- * - Focus is placed on the primary action button on mount so keyboard
- *   users can immediately invoke recovery without tabbing.
+ * ## Used by
+ *
+ * - The `/error` route (URL-param mode, direct navigation)
+ * - `GlobalErrorRenderer` PAGE overlay (prop mode)
+ * - `ErrorPlaygroundPage` preview panel (prop mode)
  *
  * @module pages/Error
  */
 
 import { useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { WifiOff, ServerCrash, AlertTriangle, RefreshCw, Home } from 'lucide-react';
+import {
+  WifiOff, ServerCrash, AlertTriangle, ShieldX, Lock, Clock,
+  PackageX, ShoppingBag, Zap, SearchX, AlertCircle,
+  RefreshCw, Home, ArrowLeft,
+} from 'lucide-react';
+import { ERROR_CONFIG_MAP } from '@/core/errors/error.config';
+import type { ErrorCode } from '@/core/errors/error.types';
+import type { ErrorActionButton } from '@/core/errors/error.types';
+import { useI18n } from '@/i18n/i18n.context';
 
 // ---------------------------------------------------------------------------
-// Error type config
+// Icon resolver
 // ---------------------------------------------------------------------------
 
-type ErrorVariant = 'network' | 'server' | 'unknown';
-
-type ErrorConfig = {
-  icon: React.ReactNode;
-  /** Colour of the icon wrapper circle */
-  iconBg: string;
-  iconColor: string;
-  title: string;
-  message: string;
-  /** Label on the primary CTA button */
-  retryLabel: string;
+const ICON_MAP: Record<string, React.ReactNode> = {
+  WifiOff:       <WifiOff size={36} strokeWidth={1.5} />,
+  ServerCrash:   <ServerCrash size={36} strokeWidth={1.5} />,
+  AlertTriangle: <AlertTriangle size={36} strokeWidth={1.5} />,
+  ShieldX:       <ShieldX size={36} strokeWidth={1.5} />,
+  Lock:          <Lock size={36} strokeWidth={1.5} />,
+  Clock:         <Clock size={36} strokeWidth={1.5} />,
+  PackageX:      <PackageX size={36} strokeWidth={1.5} />,
+  ShoppingBag:   <ShoppingBag size={36} strokeWidth={1.5} />,
+  Zap:           <Zap size={36} strokeWidth={1.5} />,
+  SearchX:       <SearchX size={36} strokeWidth={1.5} />,
+  AlertCircle:   <AlertCircle size={36} strokeWidth={1.5} />,
 };
+
+// ---------------------------------------------------------------------------
+// Legacy URL-param type → ErrorCode mapping
+// ---------------------------------------------------------------------------
+
+type LegacyType = 'network' | 'server' | 'unknown';
+
+const LEGACY_TYPE_MAP: Record<LegacyType, ErrorCode> = {
+  network: 'NETWORK_ERROR',
+  server:  'SERVER_ERROR',
+  unknown: 'UNKNOWN_ERROR',
+};
+
+// ---------------------------------------------------------------------------
+// Props
+// ---------------------------------------------------------------------------
 
 /**
- * Visual and textual configuration for each supported error variant.
- *
- * Designed to be empathetic and non-technical — users should understand
- * the situation without knowing what HTTP 503 means.
+ * Props for programmatic rendering. All optional — when not provided, the
+ * component falls back to the `?type=` URL param or the `unknown` fallback.
  */
-const ERROR_CONFIG: Record<ErrorVariant, ErrorConfig> = {
-  network: {
-    icon: <WifiOff size={36} strokeWidth={1.5} />,
-    iconBg: 'bg-amber-100 dark:bg-amber-900/30',
-    iconColor: 'text-amber-500 dark:text-amber-400',
-    title: 'Connection Error',
-    message:
-      "We couldn't reach our servers. Please check your internet connection and try again. If you're on Wi-Fi, try switching to mobile data.",
-    retryLabel: 'Try again',
-  },
-  server: {
-    icon: <ServerCrash size={36} strokeWidth={1.5} />,
-    iconBg: 'bg-red-100 dark:bg-red-900/30',
-    iconColor: 'text-red-500 dark:text-red-400',
-    title: 'Server Error',
-    message:
-      "Something went wrong on our end. Our team has been automatically notified and is working on a fix. Please try again in a few minutes.",
-    retryLabel: 'Try again',
-  },
-  unknown: {
-    icon: <AlertTriangle size={36} strokeWidth={1.5} />,
-    iconBg: 'bg-gray-100 dark:bg-gray-800',
-    iconColor: 'text-gray-500 dark:text-gray-400',
-    title: 'Something went wrong',
-    message:
-      "An unexpected error occurred. If this keeps happening, please contact support with the details of what you were doing.",
-    retryLabel: 'Try again',
-  },
-};
+export interface ErrorPageProps {
+  /**
+   * An error code from `ERROR_CONFIG_MAP`. When provided, all display
+   * properties (icon, title, description, actions) are loaded from config.
+   * Individual prop overrides still take precedence over config values.
+   */
+  code?: ErrorCode;
+  /** Override the icon element directly */
+  icon?: React.ReactNode;
+  /** Override the icon background Tailwind class */
+  iconBgClass?: string;
+  /** Override the icon colour Tailwind class */
+  iconColorClass?: string;
+  /** Override the title text */
+  title?: string;
+  /** Override the description text */
+  description?: string;
+  /** Primary action button */
+  primaryAction?: ErrorActionButton;
+  /** Secondary action button */
+  secondaryAction?: ErrorActionButton;
+}
 
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 
 /**
- * General-purpose error page supporting network failures, server crashes,
- * and unknown errors. The error type is read from the `?type=` URL param
- * so the page can be reached via hard navigation from the Axios interceptor.
+ * Reusable error page component. Works both as a standalone route page
+ * (`/error?type=...`) and as a directly rendered component with props.
+ *
+ * @example Programmatic:
+ * ```tsx
+ * <ErrorPage code="ORDER_NOT_FOUND" />
+ * ```
+ *
+ * @example With action override:
+ * ```tsx
+ * <ErrorPage
+ *   code="SERVER_ERROR"
+ *   primaryAction={{ label: 'Retry', variant: 'primary', onClick: handleRetry }}
+ * />
+ * ```
  */
-export default function ErrorPage() {
+export default function ErrorPage(props: ErrorPageProps) {
+  const { t } = useI18n();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const retryButtonRef = useRef<HTMLButtonElement>(null);
+  const primaryBtnRef = useRef<HTMLButtonElement>(null);
 
-  // Read error type from URL; fall back to 'unknown' for invalid values.
-  const rawType = searchParams.get('type');
-  const errorType: ErrorVariant =
-    rawType === 'network' || rawType === 'server' ? rawType : 'unknown';
+  // ── Resolve the error config ─────────────────────────────────────────────
 
-  const config = ERROR_CONFIG[errorType];
+  // 1. Code prop → config map
+  const configFromCode = props.code ? ERROR_CONFIG_MAP[props.code] : null;
 
-  // Focus the retry button on mount so keyboard users can immediately
-  // act without needing to tab through the page.
+  // 2. Legacy URL param fallback
+  const rawType = searchParams.get('type') as LegacyType | null;
+  const legacyCode = rawType && rawType in LEGACY_TYPE_MAP
+    ? LEGACY_TYPE_MAP[rawType]
+    : 'UNKNOWN_ERROR';
+  const configFromUrl = ERROR_CONFIG_MAP[legacyCode];
+
+  // Effective config: prop code > URL param > fallback
+  const config = configFromCode ?? configFromUrl;
+
+  // ── Resolve display values (prop overrides > config > fallback) ───────────
+
+  const icon = props.icon ?? ICON_MAP[config.iconName] ?? <AlertTriangle size={36} strokeWidth={1.5} />;
+  const iconBgClass    = props.iconBgClass    ?? config.iconBgClass;
+  const iconColorClass = props.iconColorClass ?? config.iconColorClass;
+  const title          = props.title          ?? t(config.titleKey);
+  const description    = props.description    ?? t(config.descriptionKey);
+
+  const primaryAction: ErrorActionButton | undefined =
+    props.primaryAction ?? (config.primaryAction
+      ? { ...config.primaryAction }
+      : undefined);
+
+  const secondaryAction: ErrorActionButton | undefined =
+    props.secondaryAction ?? (config.secondaryAction
+      ? { ...config.secondaryAction }
+      : undefined);
+
+  // Focus the primary button on mount for keyboard accessibility.
   useEffect(() => {
-    const id = setTimeout(() => retryButtonRef.current?.focus(), 100);
+    const id = setTimeout(() => primaryBtnRef.current?.focus(), 100);
     return () => clearTimeout(id);
   }, []);
 
-  /**
-   * Retry strategy:
-   * - For network errors: `window.history.back()` returns to the page
-   *   that triggered the error so the user can retry the same action.
-   * - For server errors: `window.location.reload()` is a harder reset
-   *   that re-fires the page's initial data fetch.
-   *
-   * We use `window` APIs rather than `navigate(-1)` because the error page
-   * is often reached via `window.location.assign()` from the interceptor,
-   * which means the previous history entry is the page that caused the
-   * error — `navigate(-1)` would go back to it correctly, but a browser
-   * reload on a server error retries the request from scratch.
-   */
-  const handleRetry = () => {
-    if (errorType === 'network') {
-      window.history.back();
+  // ── Action handlers ───────────────────────────────────────────────────────
+
+  const handleAction = (action: ErrorActionButton) => {
+    if (action.onClick) {
+      action.onClick();
+    } else if (action.redirectTo) {
+      navigate(action.redirectTo, { replace: true });
     } else {
-      window.location.reload();
+      // Default retry: go back or reload.
+      if (legacyCode === 'NETWORK_ERROR' || props.code === 'NETWORK_ERROR') {
+        window.history.back();
+      } else {
+        window.location.reload();
+      }
     }
   };
+
+  // ── Render ────────────────────────────────────────────────────────────────
 
   return (
     <div
@@ -150,56 +201,72 @@ export default function ErrorPage() {
       aria-live="assertive"
     >
       <div className="w-full max-w-md text-center">
-        {/* Card */}
         <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl shadow-sm p-8 sm:p-10">
-          {/* Icon illustration */}
+          {/* Icon */}
           <div
-            className={`inline-flex items-center justify-center w-20 h-20 rounded-full mb-6 ${config.iconBg} ${config.iconColor}`}
+            className={`inline-flex items-center justify-center w-20 h-20 rounded-full mb-6 ${iconBgClass} ${iconColorClass}`}
             aria-hidden="true"
           >
-            {config.icon}
+            {icon}
           </div>
 
-          {/* Heading */}
+          {/* Title */}
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-3">
-            {config.title}
+            {title}
           </h1>
 
-          {/* Error description — announced immediately by screen readers */}
+          {/* Description */}
           <p
             role="alert"
             className="text-gray-500 dark:text-gray-400 leading-relaxed mb-8 text-sm"
           >
-            {config.message}
+            {description}
           </p>
 
           {/* Action buttons */}
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
-            {/* Primary: retry */}
-            <button
-              ref={retryButtonRef}
-              type="button"
-              onClick={handleRetry}
-              className="flex items-center justify-center gap-2 px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-xl transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2"
-            >
-              <RefreshCw size={15} />
-              {config.retryLabel}
-            </button>
-
-            {/* Secondary: go home */}
-            <button
-              type="button"
-              onClick={() => navigate('/', { replace: true })}
-              className="flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 text-sm font-medium hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400 focus-visible:ring-offset-2"
-            >
-              <Home size={15} />
-              Back to home
-            </button>
+            {primaryAction && (
+              <button
+                ref={primaryBtnRef}
+                type="button"
+                onClick={() => handleAction(primaryAction)}
+                className="flex items-center justify-center gap-2 px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-xl transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2"
+              >
+                <RefreshCw size={15} />
+                {primaryAction.label}
+              </button>
+            )}
+            {secondaryAction && (
+              <button
+                type="button"
+                onClick={() => handleAction(secondaryAction)}
+                className="flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 text-sm font-medium hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400 focus-visible:ring-offset-2"
+              >
+                {secondaryAction.redirectTo === '/' ? (
+                  <Home size={15} />
+                ) : (
+                  <ArrowLeft size={15} />
+                )}
+                {secondaryAction.label}
+              </button>
+            )}
+            {!primaryAction && !secondaryAction && (
+              // Fallback when no actions are configured
+              <button
+                ref={primaryBtnRef}
+                type="button"
+                onClick={() => navigate('/', { replace: true })}
+                className="flex items-center justify-center gap-2 px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-xl transition-colors"
+              >
+                <Home size={15} />
+                Back to home
+              </button>
+            )}
           </div>
 
-          {/* Error type indicator — helps users describe the issue in support tickets */}
+          {/* Debug footer */}
           <p className="mt-6 text-xs text-gray-400 dark:text-gray-600 font-mono">
-            error_type: {errorType}
+            error_code: {props.code ?? legacyCode}
           </p>
         </div>
       </div>

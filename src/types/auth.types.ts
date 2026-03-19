@@ -3,6 +3,12 @@ export type UserType = {
   email: string;
   username: string;
   role: string;
+  /**
+   * Fine-grained permission strings returned by the backend (optional).
+   * Example: ['products:write', 'orders:read']
+   * Falls back to role-based checks when absent.
+   */
+  permissions?: string[];
 };
 
 export type AuthResponse = {

@@ -1,342 +1,194 @@
 /**
- * @fileoverview Application router — complete route tree with lazy loading.
+ * @fileoverview Application router — complete route tree with lazy loading
+ * and the full enterprise guard stack.
  *
- * ## Architecture overview
+ * ## Guard stack (outer → inner)
  *
  * ```
- * <Routes>
- * │
- * ├── /login, /register              ← AuthLayout (public, no auth check)
- * │
- * ├── UserLayout (shared storefront shell — always rendered)
- * │   ├── /                          ← HomePage          (PUBLIC)
- * │   ├── /products                  ← ProductsPage      (PUBLIC)
- * │   ├── /products/:slugId          ← ProductDetailPage (PUBLIC)
- * │   │   slug format: <name-slug>-<24-char-objectid>
- * │   │   e.g. /products/nike-air-max-64c8f1234567890123456789
- * │   ├── /cart                      ← CartPage          (PUBLIC)
- * │   └── ProtectedRoute             ← Gate: must be authenticated
- * │       ├── /checkout              ← CheckoutPage      (AUTH REQUIRED)
- * │       ├── /orders                ← OrdersPage        (AUTH REQUIRED)
- * │       └── /profile               ← ProfilePage       (AUTH REQUIRED)
- * │
- * ├── ProtectedRoute                 ← Gate: must be authenticated
- * │   └── RoleGuard [ADMIN, MANAGER]
- * │       └── AdminLayout
- * │           ├── /admin             → → /admin/products
- * │           ├── /admin/products    ← ProductsListPage
- * │           ├── /admin/products/create ← CreateProductPage
- * │           └── /admin/products/:id/edit ← EditProductPage
- * │
- * ├── /unauthorized                  ← Unauthorized (public, no layout)
- * └── *                              ← NotFound (catch-all)
+ * ProtectedRoute         ← "Are you logged in?" → /login?targetUrl=<path>
+ *   WhitelistGuard       ← "Does this route allow your role/userId/flags?"
+ *   RoleGuard            ← "Do you have the required role?"
+ *     FeatureGuard       ← "Is the required feature flag enabled?"
+ *       DeepLinkGuard    ← "Do you own this resource? (async ownership check)"
+ *         Page
  * ```
  *
- * ## Why the ecommerce storefront is public
+ * Not all pages use all guards. Lightweight pages only use `ProtectedRoute`.
+ * Admin pages additionally use `RoleGuard`. Feature-gated pages additionally
+ * use `FeatureGuard`. Resource-owning pages additionally use `DeepLinkGuard`.
  *
- * An ecommerce platform must let visitors browse before committing to
- * registration. Forcing login before any product is visible converts the app
- * into an admin dashboard experience, creates friction, and reduces
- * conversion. The public storefront pages (`/`, `/products`, `/products/:id`,
- * `/cart`) require no session and are indexed by search engines.
+ * ## Auth redirection flow
  *
- * Authentication is deferred to the moment of genuine commitment:
- * - Checkout (`/checkout`) — the user is about to pay.
- * - Orders (`/orders`) — the user wants their purchase history.
- * - Profile (`/profile`) — the user wants to manage account details.
- *
- * This is the "progressive authentication" pattern used by major ecommerce
- * platforms (Amazon, Shopify storefronts, Etsy): show value first, ask for
- * credentials only when necessary.
- *
- * ## Progressive authentication UX
- *
- * A guest user can:
- * 1. Land on the homepage and see featured products.
- * 2. Browse the full catalogue.
- * 3. View a product detail page.
- * 4. Add items to the cart (cart is persisted to `localStorage` via Zustand
- *    `persist` middleware — it survives page refresh without a session).
- * 5. Click "Proceed to checkout" → `ProtectedRoute` intercepts, saves
- *    `{ from: location }` in router state, and redirects to `/login`.
- * 6. After login, `Login.tsx` reads `location.state.from` and redirects
- *    straight back to `/checkout` — the cart is intact, the user never
- *    has to start over.
- *
- * ## Role-based redirection strategy
- *
- * After a successful login, the destination depends on:
- * 1. **Intended route** — if the user was redirected here from a protected
- *    page (e.g. `/checkout`), send them back there.
- * 2. **ADMIN / MANAGER** — if no intended route, send to `/admin/products`
- *    because their primary use-case is product management, not shopping.
- * 3. **CUSTOMER / other** — send to `/` (home page) which is the natural
- *    landing for a shopper.
- *
- * ## Intended-route redirect logic
- *
- * `ProtectedRoute` passes `state={{ from: location }}` when redirecting to
- * `/login`. `Login.tsx` reads that state:
- * ```tsx
- * const from = location.state?.from?.pathname;
- * navigate(from ?? roleBasedDefault, { replace: true });
  * ```
- * `replace: true` removes the `/login` entry from the browser history stack
- * so the back button does not return the user to the login form after they
- * have authenticated.
+ * User visits /orders/123 (unauthenticated)
+ *   → ProtectedRoute → /login?targetUrl=%2Forders%2F123
+ *   → Login success  → navigate('/orders/123', { replace: true })
+ * ```
  *
- * ## Separation between storefront and dashboard routes
+ * ## Error Boundary wrapping
  *
- * Storefront routes live directly under the root path (`/`, `/products`,
- * `/cart`, etc.) without a `/user` prefix. This gives clean, shareable,
- * SEO-friendly URLs like `https://shophub.example/products/abc123`.
+ * Each layout (`AdminLayout`, `UserLayout`) is wrapped in an `ErrorBoundary`
+ * at the route level. Render-time JS errors inside a layout section show the
+ * boundary fallback UI without crashing the entire app.
  *
- * Dashboard routes are namespaced under `/admin/` making their intent clear
- * to both users and monitoring tools, and allowing a simple prefix check to
- * decide whether to render the admin layout.
+ * The boundary automatically resets when the user navigates to a new route
+ * (`resetKey={location.pathname}`).
  *
  * ## Route-based code splitting
  *
- * Every page component is loaded via `React.lazy()` so each page's JS is
- * bundled into a separate chunk downloaded only when first visited. In
- * production this reduces the initial bundle by 60–80%.
+ * Every page component is `React.lazy()` + `<Suspense>` — each page's JS
+ * downloads only when first visited, reducing the initial bundle by ~70%.
  *
  * @module routes/AppRouter
  */
 
 import { lazy, Suspense } from 'react';
-import { Navigate, Route, Routes } from 'react-router-dom';
+import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import ProtectedRoute from './ProtectedRoute';
 import RoleGuard from './RoleGuard';
+import WhitelistGuard from './WhitelistGuard';
+import FeatureGuard from './FeatureGuard';
+import DeepLinkGuard from './DeepLinkGuard';
 import AuthLayout from '@/layouts/AuthLayout';
 import AdminLayout from '@/layouts/AdminLayout';
 import UserLayout from '@/layouts/UserLayout';
 import GlobalLoader from '@/components/common/GlobalLoader';
+import { ErrorBoundary } from '@/core/errors/ErrorBoundary';
 
 // ---------------------------------------------------------------------------
 // Lazy-loaded pages
 // ---------------------------------------------------------------------------
 
 // Auth pages
-const Login = lazy(() => import('@/pages/Login'));
+const Login    = lazy(() => import('@/pages/Login'));
 const Register = lazy(() => import('@/pages/Register'));
 
 // Error pages
-const NotFound = lazy(() => import('@/pages/NotFound'));
+const NotFound    = lazy(() => import('@/pages/NotFound'));
 const Unauthorized = lazy(() => import('@/pages/Unauthorized'));
-const ErrorPage = lazy(() => import('@/pages/Error'));
+const ErrorPage   = lazy(() => import('@/pages/Error'));
 
 // Admin pages
-const DashboardPage = lazy(() => import('@/pages/admin/DashboardPage'));
-const ProductsListPage = lazy(() => import('@/pages/admin/ProductsListPage'));
-const CreateProductPage = lazy(() => import('@/pages/admin/CreateProductPage'));
-const EditProductPage = lazy(() => import('@/pages/admin/EditProductPage'));
-const CategoriesPage = lazy(() => import('@/pages/admin/CategoriesPage'));
-const AdminOrdersPage = lazy(() => import('@/pages/admin/AdminOrdersPage'));
+const DashboardPage       = lazy(() => import('@/pages/admin/DashboardPage'));
+const ProductsListPage    = lazy(() => import('@/pages/admin/ProductsListPage'));
+const CreateProductPage   = lazy(() => import('@/pages/admin/CreateProductPage'));
+const EditProductPage     = lazy(() => import('@/pages/admin/EditProductPage'));
+const CategoriesPage      = lazy(() => import('@/pages/admin/CategoriesPage'));
+const AdminOrdersPage     = lazy(() => import('@/pages/admin/AdminOrdersPage'));
+const ErrorPlaygroundPage = lazy(() => import('@/pages/admin/ErrorPlaygroundPage'));
 
 // User pages
-const HomePage = lazy(() => import('@/pages/user/HomePage'));
-const ProductsPage = lazy(() => import('@/pages/user/ProductsPage'));
+const HomePage         = lazy(() => import('@/pages/user/HomePage'));
+const ProductsPage     = lazy(() => import('@/pages/user/ProductsPage'));
 const ProductDetailPage = lazy(() => import('@/pages/user/ProductDetailPage'));
-const CartPage = lazy(() => import('@/pages/user/CartPage'));
-const CheckoutPage = lazy(() => import('@/pages/user/CheckoutPage'));
-const OrdersPage = lazy(() => import('@/pages/user/OrdersPage'));
-const ProfilePage = lazy(() => import('@/pages/user/ProfilePage'));
+const CartPage         = lazy(() => import('@/pages/user/CartPage'));
+const CheckoutPage     = lazy(() => import('@/pages/user/CheckoutPage'));
+const OrdersPage       = lazy(() => import('@/pages/user/OrdersPage'));
+const ProfilePage      = lazy(() => import('@/pages/user/ProfilePage'));
+
+// ---------------------------------------------------------------------------
+// Suspense wrapper helper
+// ---------------------------------------------------------------------------
+
+function Page({ component: Component }: { component: React.ComponentType }) {
+  return (
+    <Suspense fallback={<GlobalLoader show />}>
+      <Component />
+    </Suspense>
+  );
+}
 
 // ---------------------------------------------------------------------------
 // Router
 // ---------------------------------------------------------------------------
 
 /**
- * The complete application route tree. Rendered inside `<App>` which is
- * already wrapped in `<BrowserRouter>` in `main.tsx`.
- *
- * Key structural decisions:
- *
- * - `UserLayout` wraps both public storefront pages AND the protected account
- *   pages so the header/footer chrome is consistent throughout.
- * - The inner `<ProtectedRoute />` under `UserLayout` covers only the pages
- *   that require a session (checkout, orders, profile).
- * - Admin routes get their own `ProtectedRoute` + `RoleGuard` outside
- *   `UserLayout` so the admin sidebar layout is completely separate.
+ * Complete application route tree. Rendered inside `<App>` which is already
+ * wrapped in `<BrowserRouter>` in `main.tsx`.
  */
 export default function AppRouter() {
+  const location = useLocation();
+
   return (
     <Routes>
       {/* ------------------------------------------------------------------ */}
       {/* Public — authentication pages                                       */}
       {/* ------------------------------------------------------------------ */}
       <Route element={<AuthLayout />}>
-        <Route
-          path="/login"
-          element={
-            <Suspense fallback={<GlobalLoader show />}>
-              <Login />
-            </Suspense>
-          }
-        />
-        <Route
-          path="/register"
-          element={
-            <Suspense fallback={<GlobalLoader show />}>
-              <Register />
-            </Suspense>
-          }
-        />
+        <Route path="/login"    element={<Page component={Login} />} />
+        <Route path="/register" element={<Page component={Register} />} />
       </Route>
 
       {/* ------------------------------------------------------------------ */}
-      {/* Storefront — UserLayout wraps public + protected pages              */}
-      {/*                                                                     */}
-      {/* Public pages are accessible without any session. The cart persists  */}
-      {/* to localStorage so guest users don't lose items on refresh.         */}
+      {/* Storefront — UserLayout (public + protected pages share layout)     */}
       {/* ------------------------------------------------------------------ */}
-      <Route element={<UserLayout />}>
+      <Route element={<ErrorBoundary resetKey={location.pathname}><UserLayout /></ErrorBoundary>}>
         {/* Public storefront — no authentication required */}
-        <Route
-          path="/"
-          element={
-            <Suspense fallback={<GlobalLoader show />}>
-              <HomePage />
-            </Suspense>
-          }
-        />
-        <Route
-          path="/products"
-          element={
-            <Suspense fallback={<GlobalLoader show />}>
-              <ProductsPage />
-            </Suspense>
-          }
-        />
-        {/*
-         * SEO-FRIENDLY PRODUCT ROUTE
-         * ──────────────────────────
-         * Pattern: /products/:slugId
-         *
-         * The :slugId param is a combined slug + ObjectId:
-         *   "nike-air-max-270-64c8f1234567890123456789"
-         *    └─── human readable ────┘└── 24-char ObjectId ┘
-         *
-         * ProductDetailPage uses extractProductId() from utils/slug.ts to
-         * strip the ObjectId from the tail for the API call.
-         *
-         * Legacy pure-ID URLs (/products/64c8f...) continue to work because
-         * extractProductId() falls back to the full string when no slug prefix
-         * is found — fully backwards-compatible.
-         *
-         * To add URL-prefix language routing (/ar/products/:slugId):
-         * Change the parent route from <Route element={<UserLayout />}> to
-         * <Route path="/:lang?" element={<UserLayout />}> and update
-         * UserLayout to read :lang and call setLang() from useI18n().
-         */}
-        <Route
-          path="/products/:slugId"
-          element={
-            <Suspense fallback={<GlobalLoader show />}>
-              <ProductDetailPage />
-            </Suspense>
-          }
-        />
-        <Route
-          path="/cart"
-          element={
-            <Suspense fallback={<GlobalLoader show />}>
-              <CartPage />
-            </Suspense>
-          }
-        />
+        <Route path="/"                element={<Page component={HomePage} />} />
+        <Route path="/products"        element={<Page component={ProductsPage} />} />
+        <Route path="/products/:slugId" element={<Page component={ProductDetailPage} />} />
+        <Route path="/cart"            element={<Page component={CartPage} />} />
 
-        {/* Protected storefront — authentication required.                  */}
-        {/* ProtectedRoute saves the intended path in state so Login can     */}
-        {/* redirect back after authentication (e.g. /checkout preserved).  */}
+        {/* Protected storefront — authentication required */}
         <Route element={<ProtectedRoute />}>
-          <Route
-            path="/checkout"
-            element={
-              <Suspense fallback={<GlobalLoader show />}>
-                <CheckoutPage />
-              </Suspense>
-            }
-          />
-          <Route
-            path="/orders"
-            element={
-              <Suspense fallback={<GlobalLoader show />}>
-                <OrdersPage />
-              </Suspense>
-            }
-          />
-          <Route
-            path="/profile"
-            element={
-              <Suspense fallback={<GlobalLoader show />}>
-                <ProfilePage />
-              </Suspense>
-            }
-          />
+          <Route path="/checkout" element={<Page component={CheckoutPage} />} />
+          <Route path="/profile"  element={<Page component={ProfilePage} />} />
+
+          {/*
+           * Orders list: protected but no deep-link ownership check
+           * (the list only shows the user's own orders).
+           */}
+          <Route path="/orders" element={<Page component={OrdersPage} />} />
+
+          {/*
+           * Order detail: deep-link guard verifies resource ownership.
+           * DeepLinkGuard reads :id from params and calls the ownership service.
+           */}
+          <Route element={<DeepLinkGuard resourceType="order" />}>
+            <Route path="/orders/:id" element={<Page component={OrdersPage} />} />
+          </Route>
         </Route>
       </Route>
 
       {/* ------------------------------------------------------------------ */}
       {/* Admin panel — ADMIN and MANAGER roles only                          */}
-      {/* Completely separate layout from the storefront.                     */}
       {/* ------------------------------------------------------------------ */}
       <Route element={<ProtectedRoute />}>
-        <Route element={<RoleGuard allowedRoles={['ADMIN', 'MANAGER']} />}>
-          <Route element={<AdminLayout />}>
-            {/* /admin → redirect to /admin/dashboard */}
-            <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
+        {/*
+         * WhitelistGuard enforces fine-grained admin route rules from
+         * src/config/whitelist.config.ts (role + userId + featureFlag checks).
+         */}
+        <Route element={<WhitelistGuard />}>
+          <Route element={<RoleGuard allowedRoles={['ADMIN', 'MANAGER']} />}>
+            <Route element={<ErrorBoundary resetKey={location.pathname}><AdminLayout /></ErrorBoundary>}>
+              {/* /admin → redirect to /admin/dashboard */}
+              <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
 
-            <Route
-              path="/admin/dashboard"
-              element={
-                <Suspense fallback={<GlobalLoader show />}>
-                  <DashboardPage />
-                </Suspense>
-              }
-            />
+              <Route path="/admin/dashboard" element={<Page component={DashboardPage} />} />
 
-            <Route
-              path="/admin/products"
-              element={
-                <Suspense fallback={<GlobalLoader show />}>
-                  <ProductsListPage />
-                </Suspense>
-              }
-            />
-            <Route
-              path="/admin/products/create"
-              element={
-                <Suspense fallback={<GlobalLoader show />}>
-                  <CreateProductPage />
-                </Suspense>
-              }
-            />
-            <Route
-              path="/admin/products/:id/edit"
-              element={
-                <Suspense fallback={<GlobalLoader show />}>
-                  <EditProductPage />
-                </Suspense>
-              }
-            />
-            <Route
-              path="/admin/categories"
-              element={
-                <Suspense fallback={<GlobalLoader show />}>
-                  <CategoriesPage />
-                </Suspense>
-              }
-            />
-            <Route
-              path="/admin/orders"
-              element={
-                <Suspense fallback={<GlobalLoader show />}>
-                  <AdminOrdersPage />
-                </Suspense>
-              }
-            />
+              {/* Products */}
+              <Route path="/admin/products"              element={<Page component={ProductsListPage} />} />
+              <Route path="/admin/products/create"       element={<Page component={CreateProductPage} />} />
+              <Route path="/admin/products/:id/edit"     element={<Page component={EditProductPage} />} />
+
+              {/* Categories */}
+              <Route path="/admin/categories" element={<Page component={CategoriesPage} />} />
+
+              {/* Orders */}
+              <Route path="/admin/orders" element={<Page component={AdminOrdersPage} />} />
+
+              {/*
+               * Error Playground — ADMIN only + errorPlayground feature flag.
+               * WhitelistGuard already checks the role; FeatureGuard adds the
+               * flag check so the route is invisible to ADMINs without the flag.
+               */}
+              <Route element={<FeatureGuard featureFlag="errorPlayground" />}>
+                <Route
+                  path="/admin/error-playground"
+                  element={<Page component={ErrorPlaygroundPage} />}
+                />
+              </Route>
+            </Route>
           </Route>
         </Route>
       </Route>
@@ -344,32 +196,11 @@ export default function AppRouter() {
       {/* ------------------------------------------------------------------ */}
       {/* Error pages — public, no layout shell                               */}
       {/* ------------------------------------------------------------------ */}
-      <Route
-        path="/unauthorized"
-        element={
-          <Suspense fallback={<GlobalLoader show />}>
-            <Unauthorized />
-          </Suspense>
-        }
-      />
-      <Route
-        path="/error"
-        element={
-          <Suspense fallback={<GlobalLoader show />}>
-            <ErrorPage />
-          </Suspense>
-        }
-      />
+      <Route path="/unauthorized" element={<Page component={Unauthorized} />} />
+      <Route path="/error"        element={<Page component={ErrorPage} />} />
 
       {/* Catch-all — must be last */}
-      <Route
-        path="*"
-        element={
-          <Suspense fallback={<GlobalLoader show />}>
-            <NotFound />
-          </Suspense>
-        }
-      />
+      <Route path="*" element={<Page component={NotFound} />} />
     </Routes>
   );
 }

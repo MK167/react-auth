@@ -2,30 +2,37 @@
  * @fileoverview Root application component.
  *
  * `App` is the minimal composition root. It wraps the entire component tree
- * with the two providers that must be available to all children:
+ * with providers that must be available to all children:
  *
- * 1. **`I18nProvider`** — makes `useI18n()` available everywhere. On mount it
- *    reads the stored language from `localStorage` and applies `dir` and `lang`
- *    attributes to `<html>` immediately, preventing RTL layout flash for
- *    returning Arabic users. Must be the outermost provider so that
- *    `ThemeProvider` and layout components can call `useI18n()` if needed.
+ * 1. **`I18nProvider`** — makes `useI18n()` available everywhere. Reads
+ *    stored language from `localStorage` and applies `dir`/`lang` to `<html>`
+ *    immediately, preventing RTL layout flash for Arabic users.
  *
- * 2. **`ThemeProvider`** — makes `useTheme()` available in every layout and
- *    component. It reads the stored preference from `localStorage` on mount
- *    and applies the `dark` class to `<html>` if needed, preventing FOUC
- *    (Flash Of Unstyled Content) for returning dark-mode users.
+ * 2. **`ThemeProvider`** — makes `useTheme()` available everywhere. Reads
+ *    stored theme preference and applies the `dark` class to `<html>` on
+ *    mount, preventing FOUC for returning dark-mode users.
  *
- * 3. **`GlobalLoader`** — fullscreen spinner overlay driven by the Zustand
- *    `useUiStore.activeApiRequestsCount` counter. Mounted here (above the
- *    router) so it renders above all page content via `z-[9999]`. It shows
- *    automatically for any Axios request that does not opt out with
- *    `showGlobalLoader: false`.
+ * 3. **`ErrorBoundary`** — top-level safety net. Catches render-time JS
+ *    errors that escape layout-level boundaries (e.g. errors in providers
+ *    themselves). Shows a minimal crash fallback UI.
  *
- * 4. **`AppRouter`** — renders the full React Router `<Routes>` tree with
- *    lazy-loaded pages, authentication gates, and role-based guards.
- *    `BrowserRouter` is intentionally kept in `main.tsx` so that `App` and
- *    its descendants can use `useNavigate`, `useLocation`, etc. without
- *    needing access to the router provider.
+ * 4. **`GlobalLoader`** — fullscreen spinner overlay driven by the Zustand
+ *    `useUiStore.activeApiRequestsCount` semaphore. Mounted above the router
+ *    so it renders above all page content via `z-[9999]`. Shows automatically
+ *    for any Axios request that does not opt out with `showGlobalLoader: false`.
+ *
+ * 5. **`GlobalErrorRenderer`** — subscribes to `useErrorStore` and renders
+ *    the appropriate UI for each display mode:
+ *    - PAGE → fullscreen overlay (z-[9990])
+ *    - MODAL → dialog overlay (z-[9995])
+ *    - TOAST → bottom-right notification stack (z-[9999])
+ *    INLINE errors are consumed by individual components directly.
+ *
+ * 6. **`AppRouter`** — renders the full React Router `<Routes>` tree with
+ *    lazy-loaded pages, authentication gates, role guards, feature guards,
+ *    whitelist guards, and deep-link guards.
+ *    `BrowserRouter` is kept in `main.tsx` so that all descendants can use
+ *    `useNavigate`, `useLocation`, etc.
  *
  * @module App
  */
@@ -33,18 +40,23 @@
 import { I18nProvider } from '@/i18n/i18n.context';
 import { ThemeProvider } from '@/themes/theme.context';
 import GlobalLoader from '@/components/common/GlobalLoader';
+import GlobalErrorRenderer from '@/core/errors/GlobalErrorRenderer';
+import { ErrorBoundary } from '@/core/errors/ErrorBoundary';
 import AppRouter from '@/routes/AppRouter';
 
 /**
- * Root application component. No logic lives here — it is purely a
- * composition of providers and the router.
+ * Root application component. No business logic lives here — it is purely a
+ * composition of providers, global UI components, and the router.
  */
 function App() {
   return (
     <I18nProvider>
       <ThemeProvider>
-        <GlobalLoader />
-        <AppRouter />
+        <ErrorBoundary>
+          <GlobalLoader />
+          <GlobalErrorRenderer />
+          <AppRouter />
+        </ErrorBoundary>
       </ThemeProvider>
     </I18nProvider>
   );

@@ -234,7 +234,7 @@ export default function CreateProductPage() {
               type="number"
               step="0.01"
               min="0"
-              {...register('price')}
+              {...register('price', { valueAsNumber: true })}
               placeholder="0.00"
               aria-invalid={errors.price ? true : undefined}
               aria-describedby={errors.price ? 'price-error' : undefined}
@@ -253,7 +253,7 @@ export default function CreateProductPage() {
               id="stock"
               type="number"
               min="0"
-              {...register('stock')}
+              {...register('stock', { valueAsNumber: true })}
               placeholder="0"
               aria-invalid={errors.stock ? true : undefined}
               aria-describedby={errors.stock ? 'stock-error' : undefined}
