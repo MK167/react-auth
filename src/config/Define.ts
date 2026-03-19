@@ -1,4 +1,4 @@
-import { createApiInstance } from "@/api/axios";
+import { createApiInstance } from "@/api/base/axios";
 
 /**
  * The base URL for all API requests. This is typically the root URL of your backend server.

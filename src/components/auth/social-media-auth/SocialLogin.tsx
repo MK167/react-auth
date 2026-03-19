@@ -17,7 +17,7 @@ const SocialLogin = () => {
           type="button"
           onClick={() => handleSocialLogin("google")}
           disabled={loading !== null}
-          className="w-full border border-gray-300 p-2.5 rounded-lg hover:bg-red-50 hover:border-red-400 transition text-sm font-medium flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="w-full border border-gray-300 dark:border-gray-600 p-2.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-950 hover:border-red-400 dark:hover:border-red-500 transition text-sm font-medium text-gray-700 dark:text-gray-200 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed bg-white dark:bg-gray-700"
         >
           {loading === "google" ? <Spinner /> : <GoogleIcon />}
           Continue with Google
@@ -27,7 +27,7 @@ const SocialLogin = () => {
           type="button"
           onClick={() => handleSocialLogin("microsoft")}
           disabled={loading !== null}
-          className="w-full border border-gray-300 p-2.5 rounded-lg hover:bg-green-50 hover:border-green-500 transition text-sm font-medium flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="w-full border border-gray-300 dark:border-gray-600 p-2.5 rounded-lg hover:bg-green-50 dark:hover:bg-green-950 hover:border-green-500 dark:hover:border-green-600 transition text-sm font-medium text-gray-700 dark:text-gray-200 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed bg-white dark:bg-gray-700"
         >
           {loading === "microsoft" ? <Spinner /> : <MicrosoftIcon />}
           Continue with Microsoft
@@ -37,7 +37,7 @@ const SocialLogin = () => {
           type="button"
           onClick={() => handleSocialLogin("facebook")}
           disabled={loading !== null}
-          className="w-full border border-gray-300 p-2.5 rounded-lg hover:bg-blue-50 hover:border-blue-500 transition text-sm font-medium flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="w-full border border-gray-300 dark:border-gray-600 p-2.5 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-950 hover:border-blue-500 dark:hover:border-blue-600 transition text-sm font-medium text-gray-700 dark:text-gray-200 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed bg-white dark:bg-gray-700"
         >
           {loading === "facebook" ? <Spinner /> : <FacebookIcon />}
           Continue with Facebook

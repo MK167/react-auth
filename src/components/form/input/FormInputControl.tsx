@@ -34,15 +34,20 @@ const InputElement = <TFieldValues extends FieldValues>({
   const errorId = `error-${name}`;
 
   const baseStyle =
-    "w-full border rounded-lg p-2.5 focus:outline-none focus:ring-2 focus:ring-black transition";
+    "w-full border rounded-lg p-2.5 focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-indigo-500 transition bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500";
 
-  const borderStyle = error ? "border-red-400" : "border-gray-300";
+  const borderStyle = error
+    ? "border-red-400 dark:border-red-500"
+    : "border-gray-300 dark:border-gray-600";
+
+  const labelStyle =
+    "block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300";
 
   /* ================= FILE ================= */
   if (type === "file") {
     return (
       <div className="mb-4">
-        <label htmlFor={inputId} className="block mb-1 text-sm font-medium">
+        <label htmlFor={inputId} className={labelStyle}>
           {label}
         </label>
 
@@ -69,7 +74,7 @@ const InputElement = <TFieldValues extends FieldValues>({
   if (type === "checkbox") {
     return (
       <div className="mb-4">
-        <label htmlFor={inputId} className="flex items-center gap-2 text-sm">
+        <label htmlFor={inputId} className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
           <input
             id={inputId}
             type="checkbox"
@@ -94,7 +99,7 @@ const InputElement = <TFieldValues extends FieldValues>({
   if (type === "select") {
     return (
       <div className="mb-4">
-        <label htmlFor={inputId} className="block mb-1 text-sm font-medium">
+        <label htmlFor={inputId} className={labelStyle}>
           {label}
         </label>
 
@@ -127,11 +132,11 @@ const InputElement = <TFieldValues extends FieldValues>({
   if (type === "radio") {
     return (
       <div className="mb-4">
-        <p className="text-sm font-medium mb-1">{label}</p>
+        <p className={labelStyle}>{label}</p>
 
         <div className="flex gap-4">
           {options.map((opt) => (
-            <label key={opt.value} className="flex gap-2 text-sm">
+            <label key={opt.value} className="flex gap-2 text-sm text-gray-700 dark:text-gray-300">
               <input
                 type="radio"
                 value={opt.value}
@@ -157,7 +162,7 @@ const InputElement = <TFieldValues extends FieldValues>({
   if (type === "textarea") {
     return (
       <div className="mb-4">
-        <label htmlFor={inputId} className="block mb-1 text-sm font-medium">
+        <label htmlFor={inputId} className={labelStyle}>
           {label}
         </label>
 
@@ -183,7 +188,7 @@ const InputElement = <TFieldValues extends FieldValues>({
   /* ================= DEFAULT INPUT ================= */
   return (
     <div className="mb-4">
-      <label htmlFor={inputId} className="block mb-1 text-sm font-medium">
+      <label htmlFor={inputId} className={labelStyle}>
         {label}
       </label>
 
