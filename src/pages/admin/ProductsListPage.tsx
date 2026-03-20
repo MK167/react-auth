@@ -60,7 +60,7 @@ import { getProducts, deleteProduct, getCategories } from '@/api/products.api';
 import { TableRowSkeleton } from '@/components/ui/Skeleton';
 import DeleteModal from '@/components/admin/DeleteModal';
 import { useDebounce } from '@/hooks/useDebounce';
-import { useI18n } from '@/i18n/i18n.context';
+import { useI18n } from '@/i18n/use-i18n.hook';
 import type { Product, ProductCategory, PaginatedData } from '@/types/product.types';
 
 // ---------------------------------------------------------------------------

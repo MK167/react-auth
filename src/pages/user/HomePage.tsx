@@ -23,7 +23,7 @@ import { useWishlistStore } from '@/store/wishlist.store';
 import { ProductCardSkeleton } from '@/components/ui/Skeleton';
 import { toProductSlugId } from '@/utils/slug';
 import { prefetchProductDetail } from '@/utils/prefetch';
-import { useI18n } from '@/i18n/i18n.context';
+import { useI18n } from '@/i18n/use-i18n.hook';
 import type { Product } from '@/types/product.types';
 
 // ---------------------------------------------------------------------------

@@ -10,7 +10,7 @@
 
 import { useNavigate } from 'react-router-dom';
 import { Package, ArrowRight, Clock, CheckCircle, Truck, XCircle } from 'lucide-react';
-import { useI18n } from '@/i18n/i18n.context';
+import { useI18n } from '@/i18n/use-i18n.hook';
 
 // ---------------------------------------------------------------------------
 // Mock data

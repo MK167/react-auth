@@ -46,7 +46,7 @@ import { useCartStore } from '@/store/cart.store';
 import { useWishlistStore } from '@/store/wishlist.store';
 import { addToServerCart } from '@/api/cart.api';
 import { useTheme } from '@/themes/theme.context';
-import { useI18n } from '@/i18n/i18n.context';
+import { useI18n } from '@/i18n/use-i18n.hook';
 
 // ---------------------------------------------------------------------------
 // Navigation config

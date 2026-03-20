@@ -30,7 +30,7 @@ import { useCartStore } from '@/store/cart.store';
 import { getProductById } from '@/api/products.api';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { toProductSlugId } from '@/utils/slug';
-import { useI18n } from '@/i18n/i18n.context';
+import { useI18n } from '@/i18n/use-i18n.hook';
 import type { Product } from '@/types/product.types';
 
 export default function WishlistPage() {

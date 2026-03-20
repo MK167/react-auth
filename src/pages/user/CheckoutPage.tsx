@@ -27,7 +27,7 @@ import { useAuthStore } from '@/store/auth.store';
 import { authUrl } from '@/config/Define';
 import { checkoutSchema, isDeclinedCard } from '@/schemas/checkout.schema';
 import type { CheckoutFormValues } from '@/schemas/checkout.schema';
-import { useI18n } from '@/i18n/i18n.context';
+import { useI18n } from '@/i18n/use-i18n.hook';
 
 // ---------------------------------------------------------------------------
 // Field error helper

@@ -95,8 +95,6 @@
  */
 
 import {
-  createContext,
-  useContext,
   useEffect,
   useState,
   useCallback,
@@ -106,16 +104,11 @@ import { en } from "./locales/en";
 import { ar } from "./locales/ar";
 import { useInitStore } from "@/core/init/init.store";
 import { fetchLocaleBundle } from "@/core/init/init.service";
+import { I18nContext, type Lang, type Dir } from "./i18n.types";
 
 // ---------------------------------------------------------------------------
-// Types
+// Helpers
 // ---------------------------------------------------------------------------
-
-/** The two supported language codes. */
-export type Lang = "en" | "ar";
-
-/** Writing direction derived from the language. */
-export type Dir = "ltr" | "rtl";
 
 /** Static fallback locales (used before dynamic bundle loads). */
 const LOCALES: Record<Lang, typeof en> = { en, ar };
@@ -125,36 +118,6 @@ const LANG_DIR: Record<Lang, Dir> = {
   en: "ltr",
   ar: "rtl",
 };
-
-/** Shape of the value exposed by `I18nContext`. */
-export type I18nContextValue = {
-  /** Currently active language code ('en' | 'ar'). */
-  lang: Lang;
-  /** Writing direction for the active language ('ltr' | 'rtl'). */
-  dir: Dir;
-  /**
-   * Translates a dot-notation key to the active locale string.
-   *
-   * @param key      - Dot-separated path into the locale object (e.g. 'nav.home').
-   * @param fallback - Optional fallback string if the key is not found.
-   *                   Defaults to the key string itself.
-   * @returns        The translated string.
-   */
-  translate: (key: string, fallback?: string) => string;
-  /**
-   * Switches the active language. Persists to localStorage and updates the
-   * `dir` and `lang` attributes on `<html>` immediately.
-   *
-   * @param language - The target language code.
-   */
-  setLang: (language: Lang) => void;
-};
-
-// ---------------------------------------------------------------------------
-// Context
-// ---------------------------------------------------------------------------
-
-const I18nContext = createContext<I18nContextValue | null>(null);
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -276,35 +239,3 @@ export function I18nProvider({ children }: { readonly children: ReactNode }) {
   );
 }
 
-// ---------------------------------------------------------------------------
-// Hook
-// ---------------------------------------------------------------------------
-
-/**
- * Provides access to the active language, direction, translation function,
- * and the language setter.
- *
- * **Usage:**
- * ```tsx
- * function MyComponent() {
- *   const { t, lang, setLang, dir } = useI18n();
- *   return (
- *     <div dir={dir}>
- *       <h1>{t('home.hero.title')}</h1>
- *       <button onClick={() => setLang(lang === 'en' ? 'ar' : 'en')}>
- *         {t('nav.language')}
- *       </button>
- *     </div>
- *   );
- * }
- * ```
- *
- * @throws If called outside of an `I18nProvider` tree.
- */
-export function useI18n(): I18nContextValue {
-  const ctx = useContext(I18nContext);
-  if (!ctx) {
-    throw new Error("useI18n must be used within an <I18nProvider>");
-  }
-  return ctx;
-}

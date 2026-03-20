@@ -47,7 +47,7 @@ import {
 import { ERROR_CONFIG_MAP } from '@/core/errors/error.config';
 import type { ErrorCode } from '@/core/errors/error.types';
 import type { ErrorActionButton } from '@/core/errors/error.types';
-import { useI18n } from '@/i18n/i18n.context';
+import { useI18n } from '@/i18n/use-i18n.hook';
 
 // ---------------------------------------------------------------------------
 // Icon resolver

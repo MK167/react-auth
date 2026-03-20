@@ -27,7 +27,7 @@ import { useErrorStore } from '@/core/errors/error.store';
 import { ERROR_CONFIG_MAP } from '@/core/errors/error.config';
 import type { ErrorCode, ErrorDisplayMode } from '@/core/errors/error.types';
 import { useAuthStore } from '@/store/auth.store';
-import { useI18n } from '@/i18n/i18n.context';
+import { useI18n } from '@/i18n/use-i18n.hook';
 
 // ---------------------------------------------------------------------------
 // Constants

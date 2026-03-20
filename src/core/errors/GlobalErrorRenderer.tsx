@@ -32,7 +32,7 @@ import {
   RefreshCw, Home, X, ArrowLeft,
 } from 'lucide-react';
 import { useErrorStore } from './error.store';
-import { useI18n } from '@/i18n/i18n.context';
+import { useI18n } from '@/i18n/use-i18n.hook';
 import type { ActiveError } from './error.types';
 
 // ---------------------------------------------------------------------------

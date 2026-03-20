@@ -33,7 +33,7 @@ import { Trash2, Plus, Minus, ShoppingBag, ArrowRight } from 'lucide-react';
 import { useCartStore } from '@/store/cart.store';
 import { toProductSlugId } from '@/utils/slug';
 import { prefetchCheckout } from '@/utils/prefetch';
-import { useI18n } from '@/i18n/i18n.context';
+import { useI18n } from '@/i18n/use-i18n.hook';
 
 /**
  * Shopping cart page — line items, quantity controls, totals, and checkout CTA.

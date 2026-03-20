@@ -49,7 +49,7 @@ import { useCartStore } from '@/store/cart.store';
 import { useWishlistStore } from '@/store/wishlist.store';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { extractProductId } from '@/utils/slug';
-import { useI18n } from '@/i18n/i18n.context';
+import { useI18n } from '@/i18n/use-i18n.hook';
 import type { Product } from '@/types/product.types';
 
 /**

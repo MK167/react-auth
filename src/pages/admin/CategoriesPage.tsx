@@ -46,7 +46,7 @@ import { Plus, Pencil, Trash2, Tag, AlertCircle, RefreshCw, X, Check } from 'luc
 import { getCategories } from '@/api/products.api';
 import { createCategory, updateCategory, deleteCategory } from '@/api/categories.api';
 import { Skeleton } from '@/components/ui/Skeleton';
-import { useI18n } from '@/i18n/i18n.context';
+import { useI18n } from '@/i18n/use-i18n.hook';
 import type { ProductCategory } from '@/types/product.types';
 
 // ---------------------------------------------------------------------------

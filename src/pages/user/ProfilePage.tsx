@@ -12,7 +12,7 @@ import { useNavigate } from 'react-router-dom';
 import { User, Mail, Shield, LogOut, ShoppingBag } from 'lucide-react';
 import { useAuthStore } from '@/store/auth.store';
 import { useCartStore } from '@/store/cart.store';
-import { useI18n } from '@/i18n/i18n.context';
+import { useI18n } from '@/i18n/use-i18n.hook';
 
 /**
  * Profile page showing user details, role, and quick-action links.

@@ -8,7 +8,7 @@ import { useCartMerge } from "@/hooks/useCartMerge";
 import { useWishlistSync } from "@/hooks/useWishlistSync";
 import { prefetchAdminDashboard } from "@/utils/prefetch";
 import { cookieService } from "@/utils/cookie.service";
-import { useI18n } from "@/i18n/i18n.context";
+import { useI18n } from "@/i18n/use-i18n.hook";
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Mail, Lock } from "lucide-react";

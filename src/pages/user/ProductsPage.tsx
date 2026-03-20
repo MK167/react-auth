@@ -19,7 +19,7 @@ import { ProductCardSkeleton } from '@/components/ui/Skeleton';
 import { useDebounce } from '@/hooks/useDebounce';
 import { toProductSlugId } from '@/utils/slug';
 import { prefetchProductDetail } from '@/utils/prefetch';
-import { useI18n } from '@/i18n/i18n.context';
+import { useI18n } from '@/i18n/use-i18n.hook';
 import type { Product, ProductCategory, PaginatedData } from '@/types/product.types';
 
 const PAGE_SIZE = 12;
