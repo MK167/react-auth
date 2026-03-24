@@ -21,13 +21,15 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Play, RotateCcw, Layers, Zap, ShieldX, AlertTriangle,
-  Info, Check, ChevronDown,
+  Info, Check, ChevronDown, Timer, Activity, Bug,
 } from 'lucide-react';
 import { useErrorStore } from '@/core/errors/error.store';
 import { ERROR_CONFIG_MAP } from '@/core/errors/error.config';
 import type { ErrorCode, ErrorDisplayMode } from '@/core/errors/error.types';
 import { useAuthStore } from '@/store/auth.store';
 import { useI18n } from '@/i18n/use-i18n.hook';
+import { useUiStore } from '@/store/ui.store';
+import { ErrorBoundary } from '@/core/errors/ErrorBoundary';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -101,6 +103,37 @@ function InlineErrorPreview({ code }: { code: ErrorCode }) {
 }
 
 // ---------------------------------------------------------------------------
+// CrashableWidget — throws during render when the button is clicked
+// ---------------------------------------------------------------------------
+
+function CrashableWidget() {
+  const [shouldCrash, setShouldCrash] = useState(false);
+  if (shouldCrash) throw new Error('Widget deliberately crashed for ErrorBoundary demo!');
+  return (
+    <div className="p-4 rounded-xl border border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/20">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2 text-green-700 dark:text-green-400">
+          <Check size={16} />
+          <span className="text-sm font-medium">Widget is healthy</span>
+        </div>
+        <button
+          type="button"
+          onClick={() => setShouldCrash(true)}
+          className="flex items-center gap-1.5 px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-medium rounded-lg transition-colors flex-shrink-0"
+        >
+          <Bug size={12} />
+          Crash this widget
+        </button>
+      </div>
+      <p className="text-xs text-green-600 dark:text-green-500 mt-2">
+        Clicking the button sets local state that causes this component to throw during
+        React's render phase — exactly what ErrorBoundary is designed to catch.
+      </p>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Main page
 // ---------------------------------------------------------------------------
 
@@ -116,6 +149,15 @@ export default function ErrorPlaygroundPage() {
   const [withRetry, setWithRetry] = useState(false);
   const [showInlinePreview, setShowInlinePreview] = useState(false);
   const [lastTriggered, setLastTriggered] = useState<string | null>(null);
+
+  // GlobalLoader demo
+  const [loaderStatus, setLoaderStatus] = useState<string | null>(null);
+  const startLoading = useUiStore((s) => s.startLoading);
+  const stopLoading = useUiStore((s) => s.stopLoading);
+  const activeApiRequestsCount = useUiStore((s) => s.activeApiRequestsCount);
+
+  // ErrorBoundary demo
+  const [recoveryKey, setRecoveryKey] = useState(0);
 
   const selectedConfig = ERROR_CONFIG_MAP[selectedCode];
   const effectiveMode = selectedMode === 'default' ? selectedConfig.displayMode : selectedMode;
@@ -390,7 +432,164 @@ export default function ErrorPlaygroundPage() {
         </div>
       </div>
 
-      {/* ── SECTION 3: Feature flag toggles ──────────────────────────────── */}
+      {/* ── SECTION 3: GlobalLoader demo ─────────────────────────────────── */}
+      <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-6">
+        <SectionHeader
+          icon={<Timer size={16} />}
+          title="GlobalLoader Demo"
+          subtitle="Directly drive the Zustand loading counter — the same semaphore Axios uses."
+        />
+
+        {/* Live counter */}
+        <div className="mb-4 flex items-center gap-2 p-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl">
+          <Activity size={14} className="text-indigo-500 flex-shrink-0" />
+          <span className="text-xs text-gray-500 dark:text-gray-400">activeApiRequestsCount:</span>
+          <Badge color={activeApiRequestsCount > 0 ? 'indigo' : 'gray'}>{activeApiRequestsCount}</Badge>
+          {activeApiRequestsCount > 0 && (
+            <span className="text-xs text-indigo-600 dark:text-indigo-400 font-medium animate-pulse">
+              — overlay is visible
+            </span>
+          )}
+        </div>
+
+        <div className="grid sm:grid-cols-3 gap-3">
+          {/* Single request */}
+          <div className="p-4 rounded-xl border border-gray-200 dark:border-gray-700">
+            <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-1">Single Request</h3>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mb-3 leading-relaxed">
+              Simulates one API call. Loader appears for 2 s then disappears.
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                startLoading();
+                setLoaderStatus('Single request in-flight (2 s)…');
+                setTimeout(() => {
+                  stopLoading();
+                  setLoaderStatus('Done — loader hidden.');
+                  setTimeout(() => setLoaderStatus(null), 1500);
+                }, 2000);
+              }}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-medium rounded-lg transition-colors"
+            >
+              <Play size={11} />
+              Simulate
+            </button>
+          </div>
+
+          {/* Parallel requests */}
+          <div className="p-4 rounded-xl border border-indigo-200 dark:border-indigo-800">
+            <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-1">Parallel ×3</h3>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mb-3 leading-relaxed">
+              3 requests start together. Loader stays until the <em>last</em> one settles at 3 s.
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                startLoading(); startLoading(); startLoading(); // count → 3
+                setLoaderStatus('3 parallel requests in-flight…');
+                setTimeout(() => { stopLoading(); setLoaderStatus('1/3 done — loader still up (count: 2)…'); }, 1000);
+                setTimeout(() => { stopLoading(); setLoaderStatus('2/3 done — loader still up (count: 1)…'); }, 2000);
+                setTimeout(() => {
+                  stopLoading(); // count → 0
+                  setLoaderStatus('All 3 done — loader hidden.');
+                  setTimeout(() => setLoaderStatus(null), 1500);
+                }, 3000);
+              }}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-medium rounded-lg transition-colors"
+            >
+              <Play size={11} />
+              Simulate
+            </button>
+          </div>
+
+          {/* Silent opt-out */}
+          <div className="p-4 rounded-xl border border-gray-200 dark:border-gray-700">
+            <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-1">Silent (opt-out)</h3>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mb-3 leading-relaxed">
+              Mimics <code className="font-mono text-[10px]">showGlobalLoader: false</code>. Counter stays 0 — no overlay.
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                // deliberately does NOT call startLoading — simulates opt-out
+                setLoaderStatus('Silent request fired — counter unchanged, no overlay.');
+                setTimeout(() => {
+                  setLoaderStatus('Silent request complete.');
+                  setTimeout(() => setLoaderStatus(null), 1500);
+                }, 2000);
+              }}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-600 hover:bg-gray-700 text-white text-xs font-medium rounded-lg transition-colors"
+            >
+              <Play size={11} />
+              Simulate
+            </button>
+          </div>
+        </div>
+
+        {loaderStatus && (
+          <p className="mt-3 text-xs text-indigo-600 dark:text-indigo-400 flex items-center gap-1.5">
+            <Activity size={12} />
+            {loaderStatus}
+          </p>
+        )}
+      </div>
+
+      {/* ── SECTION 4: ErrorBoundary demo ────────────────────────────────── */}
+      <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-6">
+        <SectionHeader
+          icon={<Bug size={16} />}
+          title="ErrorBoundary Demo"
+          subtitle="Crash a scoped widget. The sidebar and all other sections stay intact."
+        />
+
+        <div className="space-y-3">
+          <div className="p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl flex items-start gap-2">
+            <Info size={14} className="flex-shrink-0 mt-0.5 text-blue-600 dark:text-blue-400" />
+            <p className="text-xs text-blue-700 dark:text-blue-300">
+              The widget below is wrapped in its own <code className="font-mono">{'<ErrorBoundary>'}</code>.
+              Click "Crash this widget" to throw a render-time JS error.
+              The boundary catches it and shows a fallback — the rest of the page
+              (sidebar, header, sections above/below) remains fully functional.
+              Click "Recover widget" to remount it clean.
+            </p>
+          </div>
+
+          <ErrorBoundary
+            resetKey={String(recoveryKey)}
+            fallback={(error) => (
+              <div className="p-4 rounded-xl border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20">
+                <div className="flex items-start gap-3">
+                  <AlertTriangle size={18} className="flex-shrink-0 text-red-500 mt-0.5" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-red-700 dark:text-red-400">
+                      ErrorBoundary caught a render error
+                    </p>
+                    <pre className="mt-1.5 text-xs text-red-500 font-mono bg-red-100 dark:bg-red-900/40 rounded p-2 overflow-auto whitespace-pre-wrap break-all">
+                      {error.message}
+                    </pre>
+                    <p className="mt-2 text-xs text-red-600 dark:text-red-400">
+                      Sidebar, header, and all other sections above/below this widget are still functional.
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setRecoveryKey((k) => k + 1)}
+                  className="mt-3 flex items-center gap-1.5 px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-medium rounded-lg transition-colors"
+                >
+                  <RotateCcw size={12} />
+                  Recover widget
+                </button>
+              </div>
+            )}
+          >
+            <CrashableWidget key={recoveryKey} />
+          </ErrorBoundary>
+        </div>
+      </div>
+
+      {/* ── SECTION 5: Feature flag toggles ──────────────────────────────── */}
       <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-6">
         <SectionHeader
           icon={<ShieldX size={16} />}
@@ -445,7 +644,7 @@ export default function ErrorPlaygroundPage() {
         </div>
       </div>
 
-      {/* ── SECTION 4: All error codes reference ─────────────────────────── */}
+      {/* ── SECTION 6: All error codes reference ─────────────────────────── */}
       <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-6">
         <SectionHeader
           icon={<Info size={16} />}

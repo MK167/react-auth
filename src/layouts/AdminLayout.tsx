@@ -33,6 +33,7 @@ import {
   Sun,
   Moon,
   ChevronRight,
+  Layers,
 } from 'lucide-react';
 import { useAuthStore } from '@/store/auth.store';
 import { useTheme } from '@/themes/theme.context';
@@ -76,11 +77,18 @@ const NAV_ITEMS: NavItem[] = [
 // ---------------------------------------------------------------------------
 
 export default function AdminLayout() {
-  const { user, logout } = useAuthStore();
+  const { user, logout, featureFlags } = useAuthStore();
   const { theme, toggleTheme } = useTheme();
   const { translate } = useI18n();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  const navItems = [
+    ...NAV_ITEMS,
+    ...(featureFlags?.errorPlayground
+      ? [{ labelKey: 'admin.nav.errorPlayground', to: '/admin/error-playground', icon: <Layers size={18} /> }]
+      : []),
+  ];
 
   const handleLogout = useCallback(() => {
     logout();
@@ -101,7 +109,7 @@ export default function AdminLayout() {
 
       {/* Navigation */}
       <nav aria-label="Admin navigation" className="flex-1 px-3 py-4 space-y-1">
-        {NAV_ITEMS.map((item) => (
+        {navItems.map((item) => (
           <NavLink
             key={item.to + item.labelKey}
             to={item.to}

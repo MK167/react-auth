@@ -270,6 +270,7 @@ export const defaultAr: Locale = {
       products: 'المنتجات',
       categories: 'الفئات',
       orders: 'الطلبات',
+      errorPlayground: 'ملعب الأخطاء',
       signOut: 'تسجيل الخروج',
     },
     products: {

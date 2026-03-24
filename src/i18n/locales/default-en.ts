@@ -274,6 +274,7 @@ export const defaultEn = {
       products: 'Products',
       categories: 'Categories',
       orders: 'Orders',
+      errorPlayground: 'Error Playground',
       signOut: 'Sign out',
     },
     products: {
