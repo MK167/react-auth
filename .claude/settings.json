@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ps -p 6968 -o pid,ppid,command)",
+      "Bash(xargs -I{} ps -p {} -o pid,ppid,command)",
+      "Bash(xargs kill:*)",
+      "Bash(lsof -ti:5173)",
+      "Bash(lsof -ti:3001 -ti:5173)",
+      "Bash(curl -s http://localhost:3001/api/v1/users/login -X POST -H \"Content-Type: application/json\" -d '{\"\"email\"\":\"\"customer@test.com\"\",\"\"password\"\":\"\"Password123\"\"}')",
+      "Bash(curl -s http://localhost:5173/api/v1/users/login -X POST -H \"Content-Type: application/json\" -d '{\"\"email\"\":\"\"customer@test.com\"\",\"\"password\"\":\"\"Password123\"\"}')",
+      "Bash(curl -s http://localhost:3001/api/v1/ecommerce/profile/wishlist -H \"Authorization: Bearer mock-access-user001-1000000000000\")",
+      "Bash(find src/components -name *header* -o -name *Header* -o -name *footer* -o -name *Footer* -o -name *nav* -o -name *Nav*)"
+    ]
+  }
+}

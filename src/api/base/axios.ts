@@ -257,12 +257,34 @@ export const createApiInstance = (baseURL: string) => {
           return api(originalRequest);
         } catch (refreshError) {
           processQueue(refreshError, null);
-          useAuthStore.getState().logout();
-          // Defer the hard navigation to the next macrotask so React can
-          // finish its current render/commit cycle before the page unloads.
-          // Navigating synchronously while React is mid-render tears down
-          // the React dispatcher, causing useContext to throw.
-          setTimeout(() => { window.location.href = '/login'; }, 0);
+
+          // Race-condition guard: a fresh login (e.g. social auth) may have
+          // completed while this refresh was in-flight. If the cookie token
+          // is now different from the one on the original failing request, a
+          // new valid session exists — destroying it would kick the user back
+          // to /login immediately after they just signed in successfully.
+          //
+          // Compare the current cookie token to the Authorization header of
+          // the original 401 request. If they differ, a new setAuth() was
+          // called → skip logout and redirect.
+          const currentCookieToken = cookieService.getToken() ?? null;
+          const originalAuthHeader = originalRequest?.headers?.['Authorization'];
+          const originalToken =
+            typeof originalAuthHeader === 'string'
+              ? originalAuthHeader.replace(/^Bearer\s+/i, '')
+              : null;
+          const freshLoginOccurred =
+            currentCookieToken !== null && currentCookieToken !== originalToken;
+
+          if (!freshLoginOccurred) {
+            useAuthStore.getState().logout();
+            // Defer the hard navigation to the next macrotask so React can
+            // finish its current render/commit cycle before the page unloads.
+            // Navigating synchronously while React is mid-render tears down
+            // the React dispatcher, causing useContext to throw.
+            setTimeout(() => { window.location.href = '/login'; }, 0);
+          }
+
           return Promise.reject(refreshError);
         } finally {
           isRefreshing = false;

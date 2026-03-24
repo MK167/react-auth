@@ -89,6 +89,10 @@ function paginate(items, page, limit) {
 // Auth helpers
 // ---------------------------------------------------------------------------
 
+// Token Maps are kept for in-session revocation (e.g. explicit logout).
+// Validation no longer relies solely on these maps — tokens are self-
+// authenticating: the userId is encoded in the token string so they
+// survive a server restart without forcing every user to re-login.
 const TOKENS = new Map();          // token → user._id
 const REFRESH_TOKENS = new Map();  // refreshToken → user._id
 
@@ -96,6 +100,26 @@ function makeToken(userId) {
   const token = `mock-access-${userId}-${Date.now()}`;
   TOKENS.set(token, userId);
   return token;
+}
+
+/**
+ * Extracts the userId from a mock token string without requiring the in-memory
+ * TOKENS map. Token format: `mock-access-{userId}-{timestamp}`.
+ * Returns null if the token does not match the expected format.
+ */
+function parseUserIdFromToken(token) {
+  const m = token && token.match(/^mock-access-(.+)-\d+$/);
+  return m ? m[1] : null;
+}
+
+/**
+ * Extracts the userId from a mock refresh token string.
+ * Token format: `mock-refresh-{userId}-{timestamp}`.
+ * Returns null if the token does not match the expected format.
+ */
+function parseUserIdFromRefreshToken(token) {
+  const m = token && token.match(/^mock-refresh-(.+)-\d+$/);
+  return m ? m[1] : null;
 }
 
 /** Generates a 24-char hex string (MongoDB ObjectId format) */
@@ -116,7 +140,10 @@ function makeRefreshToken(userId) {
 function getUserFromToken(req) {
   const auth = req.headers['authorization'] || '';
   const token = auth.replace(/^Bearer\s+/i, '');
-  const userId = TOKENS.get(token);
+  if (!token) return null;
+  // Prefer in-session map; fall back to parsing userId from the token
+  // string so tokens remain valid across server restarts.
+  const userId = TOKENS.get(token) || parseUserIdFromToken(token);
   if (!userId) return null;
   const db = readDb();
   return db.users.find((u) => u._id === userId) || null;
@@ -254,7 +281,11 @@ app.post('/api/v1/users/refresh-token', (req, res) => {
     authHeader.replace(/^Bearer\s+/i, '') ||
     cookieHeader.split(';').find((c) => c.trim().startsWith('refreshToken='))?.split('=')[1];
 
-  const userId = token ? REFRESH_TOKENS.get(token) : null;
+  // Prefer in-session map; fall back to parsing userId from the refresh
+  // token string so it survives a server restart.
+  const userId = token
+    ? (REFRESH_TOKENS.get(token) || parseUserIdFromRefreshToken(token))
+    : null;
   if (!userId) return fail(res, 'Invalid or expired refresh token', 401, 'SESSION_EXPIRED');
 
   const newAccessToken = makeToken(userId);
