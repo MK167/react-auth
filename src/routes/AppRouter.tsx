@@ -76,6 +76,7 @@ const EditProductPage     = lazy(() => import('@/pages/admin/EditProductPage'));
 const CategoriesPage      = lazy(() => import('@/pages/admin/CategoriesPage'));
 const AdminOrdersPage     = lazy(() => import('@/pages/admin/AdminOrdersPage'));
 const ErrorPlaygroundPage = lazy(() => import('@/pages/admin/ErrorPlaygroundPage'));
+const RealtimeChatPage    = lazy(() => import('@/pages/admin/RealtimeChatPage'));
 
 // User pages
 const HomePage         = lazy(() => import('@/pages/user/HomePage'));
@@ -184,6 +185,12 @@ export default function AppRouter() {
                * WhitelistGuard already checks the role; FeatureGuard adds the
                * flag check so the route is invisible to ADMINs without the flag.
                */}
+              <Route element={<FeatureGuard featureFlag="realtimeChat" />}>
+                <Route
+                  path="/admin/realtime-chat"
+                  element={<Page component={RealtimeChatPage} />}
+                />
+              </Route>
               <Route element={<FeatureGuard featureFlag="errorPlayground" />}>
                 <Route
                   path="/admin/error-playground"

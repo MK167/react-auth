@@ -29,6 +29,7 @@ A production-ready, bilingual (English/Arabic, LTR/RTL) e-commerce SPA with a se
 - **Order management** — list and status updates
 - Role-based access — `CUSTOMER`, `MANAGER`, `ADMIN` with layered route guards
 - **Error Playground** — interactive sandbox to test every error scenario
+- **Real-time Team Chat** — WebSocket-powered admin chat with rooms, presence, typing indicators, and notifications
 
 ### Enterprise Architecture
 - **App Initialization Gate** — `AppInitializer` fetches locale + error config bundles before router mounts; `InitSkeleton` fullscreen loader prevents flash
@@ -42,6 +43,7 @@ A production-ready, bilingual (English/Arabic, LTR/RTL) e-commerce SPA with a se
 - **Content Provider** — `VITE_CONTENT_SOURCE=local` (mock server) or `backend` (real CMS)
 - **React Error Boundary** — layout-level boundaries that auto-reset on route change
 - **Axios Error Interceptor** — maps backend error codes to the global error store
+- **WebSocket Realtime Layer** — singleton `SocketManager` with exponential-backoff reconnect, heartbeat, offline queue, and built-in mock simulation mode
 
 ### Mock Backend
 - Full Express server at `http://localhost:3001` (`mock-server/server.cjs`)
@@ -157,6 +159,19 @@ src/
 │   └── content/
 │       └── content.service.ts #  useContent() — per-key CMS fetch with cache
 │
+├── features/
+│   └── realtime/             # ★ WebSocket realtime layer
+│       ├── types/
+│       │   └── socket.types.ts     # All WS type contracts (events, payloads, status)
+│       ├── socket/
+│       │   └── socket.manager.ts   # Singleton: reconnect, heartbeat, queue, mock sim
+│       ├── store/
+│       │   └── realtime.store.ts   # Zustand: rooms, messages, presence, notifications
+│       ├── hooks/
+│       │   └── useAdminSocket.ts   # React hook exposing send/subscribe/status
+│       └── providers/
+│           └── RealtimeProvider.tsx # Lifecycle: connect on admin mount, disconnect on unmount
+│
 ├── config/
 │   ├── Define.ts             # authUrl Axios instance — mock or real based on VITE_API_SOURCE
 │   ├── firebase.ts
@@ -172,8 +187,8 @@ src/
 │
 ├── pages/
 │   ├── user/
-│   │   ├── WishlistPage.tsx  # ★ NEW — parallel product fetch + add-to-cart
-│   │   ├── CheckoutPage.tsx  # ★ RHF + Zod — payment simulation (approved / declined)
+│   │   ├── WishlistPage.tsx
+│   │   ├── CheckoutPage.tsx  # RHF + Zod — payment simulation (approved / declined)
 │   │   ├── ProductDetailPage.tsx
 │   │   ├── ProductsPage.tsx
 │   │   ├── CartPage.tsx
@@ -184,16 +199,17 @@ src/
 │       ├── ProductsListPage.tsx
 │       ├── CreateProductPage.tsx
 │       ├── EditProductPage.tsx
-│       ├── CategoriesPage.tsx   # Inline create/edit/delete
+│       ├── CategoriesPage.tsx    # Inline create/edit/delete
 │       ├── AdminOrdersPage.tsx
 │       ├── DashboardPage.tsx
-│       └── ErrorPlaygroundPage.tsx
+│       ├── ErrorPlaygroundPage.tsx
+│       └── RealtimeChatPage.tsx  # ★ NEW — WebSocket team chat demo
 │
 ├── schemas/
 │   ├── login.schema.ts
 │   ├── register.schema.ts
 │   ├── product.schema.ts
-│   └── checkout.schema.ts    # ★ NEW — Zod + isDeclinedCard() helper
+│   └── checkout.schema.ts    # Zod + isDeclinedCard() helper
 │
 ├── store/
 │   ├── auth.store.ts
@@ -203,8 +219,8 @@ src/
 │   └── init.store.ts         # isReady, dynamicLocales, dynamicErrorConfig
 │
 └── layouts/
-    ├── UserLayout.tsx         # ★ Wishlist + Cart live badges (reactive Zustand selectors)
-    ├── AdminLayout.tsx
+    ├── UserLayout.tsx         # Wishlist + Cart live badges (reactive Zustand selectors)
+    ├── AdminLayout.tsx        # ★ Notification bell badge + RealtimeProvider wrapper
     └── AuthLayout.tsx
 
 mock-server/
@@ -230,7 +246,8 @@ mock-server/
 /admin/products/:id/edit         → ProtectedRoute > WhitelistGuard > RoleGuard > AdminLayout
 /admin/categories                → ProtectedRoute > WhitelistGuard > RoleGuard > AdminLayout
 /admin/orders                    → ProtectedRoute > WhitelistGuard > RoleGuard > AdminLayout
-/admin/error-playground          → ProtectedRoute > WhitelistGuard > RoleGuard > FeatureGuard > AdminLayout
+/admin/realtime-chat             → ProtectedRoute > WhitelistGuard > RoleGuard > FeatureGuard(realtimeChat) > AdminLayout
+/admin/error-playground          → ProtectedRoute > WhitelistGuard > RoleGuard > FeatureGuard(errorPlayground) > AdminLayout
 /unauthorized, /error, *         → standalone
 ```
 
@@ -277,6 +294,35 @@ setLang('ar')              // switches to RTL — document.dir set automatically
 ```
 
 **Key namespaces:** `nav`, `home`, `products`, `product`, `cart`, `wishlist`, `checkout`, `orders`, `profile`, `common`, `errors`, `auth.login`, `auth.register`, `admin.*`
+
+---
+
+## Realtime WebSocket System
+
+```ts
+import { useAdminSocket } from '@/features/realtime/hooks/useAdminSocket';
+import { useRealtimeStore } from '@/features/realtime/store/realtime.store';
+
+// Hook — connection status + typed send/subscribe
+const { connectionStatus, sendMessage, subscribe, unsubscribe } = useAdminSocket();
+
+// Store — messages, presence, notifications (granular selectors)
+const messages    = useRealtimeStore((s) => s.rooms['general']?.messages ?? []);
+const onlineUsers = useRealtimeStore((s) => s.onlineUsers);
+const unreadCount = useRealtimeStore((s) => s.unreadCount);
+```
+
+| Feature | Detail |
+|---|---|
+| Singleton | One `WebSocket` per browser tab, shared across all hooks |
+| Reconnect | Exponential backoff — 1 s → 2 s → 4 s → 8 s → 16 s (max 5 attempts) |
+| Heartbeat | Client-side ping every 25 s; 10 s pong timeout triggers reconnect |
+| Offline queue | Messages sent while disconnected are queued and drained on reconnect |
+| Mock mode | Auto-activated in dev (`apiSource === 'mock'`) — simulates server events locally |
+| Error routing | Connection failures → `pushError('NETWORK_ERROR', { displayModeOverride: 'TOAST' })` |
+| No GlobalLoader | WebSocket activity never touches the Axios semaphore |
+
+Demo page: `/admin/realtime-chat` (requires `realtimeChat` feature flag, enabled by default in dev)
 
 ---
 

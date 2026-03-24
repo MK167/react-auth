@@ -31,6 +31,7 @@
 23. [Build & Bundle Splitting](#23-build--bundle-splitting)
 24. [Cart Persistence & Wishlist Sync](#24-cart-persistence--wishlist-sync)
 25. [Development Guidelines](#25-development-guidelines)
+26. [WebSocket Realtime Architecture](#26-websocket-realtime-architecture)
 
 ---
 
@@ -239,7 +240,8 @@ react-auth/
 │   │   │   ├── DashboardPage.tsx
 │   │   │   ├── EditProductPage.tsx
 │   │   │   ├── ErrorPlaygroundPage.tsx
-│   │   │   └── ProductsListPage.tsx
+│   │   │   ├── ProductsListPage.tsx
+│   │   │   └── RealtimeChatPage.tsx    # ★ WebSocket team chat demo
 │   │   └── user/
 │   │       ├── CartPage.tsx
 │   │       ├── CheckoutPage.tsx
@@ -261,6 +263,18 @@ react-auth/
 │   │   ├── login.schema.ts
 │   │   ├── product.schema.ts
 │   │   └── register.schema.ts
+│   ├── features/
+│   │   └── realtime/           # ★ WebSocket realtime layer
+│   │       ├── types/
+│   │       │   └── socket.types.ts      # Event envelopes, payloads, status types
+│   │       ├── socket/
+│   │       │   └── socket.manager.ts    # Singleton manager (reconnect, heartbeat, queue, mock)
+│   │       ├── store/
+│   │       │   └── realtime.store.ts    # Zustand: rooms, messages, presence, notifications
+│   │       ├── hooks/
+│   │       │   └── useAdminSocket.ts    # React hook: status / sendMessage / subscribe
+│   │       └── providers/
+│   │           └── RealtimeProvider.tsx # Lifecycle: connect on admin mount
 │   ├── store/                  # Zustand stores
 │   │   ├── auth.store.ts
 │   │   ├── cart.store.ts
@@ -533,7 +547,7 @@ Tailwind is configured with `darkMode: 'class'`. All dark-mode styles use the `d
 ProtectedRoute
   WhitelistGuard (config/whitelist.config.ts)
     RoleGuard (ADMIN | MANAGER)
-      AdminLayout (ErrorBoundary)
+      AdminLayout (ErrorBoundary) [RealtimeProvider wraps Outlet]
       /admin                    → redirect /admin/dashboard
       /admin/dashboard          → DashboardPage
       /admin/products           → ProductsListPage
@@ -541,6 +555,8 @@ ProtectedRoute
       /admin/products/:id/edit  → EditProductPage
       /admin/categories         → CategoriesPage
       /admin/orders             → AdminOrdersPage
+        FeatureGuard (realtimeChat flag)
+        /admin/realtime-chat    → RealtimeChatPage
         FeatureGuard (errorPlayground flag)
         /admin/error-playground → ErrorPlaygroundPage
 
@@ -808,6 +824,20 @@ Initialization state:
 
 Global error state. See [Section 13](#13-global-error-system).
 
+### `useRealtimeStore` — `src/features/realtime/store/realtime.store.ts`
+
+WebSocket-driven realtime state. See [Section 26](#26-websocket-realtime-architecture).
+
+| State | Type | Description |
+|---|---|---|
+| `connectionStatus` | `SocketConnectionStatus` | WS lifecycle state |
+| `rooms` | `Record<string, RoomState>` | Messages + typing per room |
+| `activeRoomId` | `string \| null` | Currently selected room |
+| `onlineUsers` | `PresenceUser[]` | Users present in the admin panel |
+| `notifications` | `NotificationPayload[]` | Server-pushed notifications |
+| `unreadCount` | `number` | Badge counter (notifications not yet `markAllRead`) |
+| `lastServerTimestamp` | `number \| null` | Epoch ms of last server event |
+
 ---
 
 ## 13. Global Error System
@@ -1005,11 +1035,14 @@ Flags are stored as `Record<string, boolean>` in:
 // In auth.store.ts — defaultFeatureFlags() in DEV mode:
 {
   errorPlayground: true,   // enables /admin/error-playground
+  realtimeChat:    true,   // enables /admin/realtime-chat + sidebar nav item
   betaReports: false,
   analyticsV2: false,
   newCheckout: false,
 }
 ```
+
+> **Dev merge behaviour:** `loadStoredFeatureFlags()` merges stored flags with `defaultFeatureFlags()` in development (`import.meta.env.DEV`). This means newly added dev flags appear automatically without a log-out/log-in cycle. Stored values always win over defaults, so server-set flags are never overwritten.
 
 In production, all flags default to `{}` (empty) — features are disabled unless the backend grants them.
 
@@ -1088,19 +1121,29 @@ This ensures: User A logs in → adds items → logs out → items are on the se
 Admin panel shell. Structure:
 
 ```
-┌──────────────────────────────────────────────────────┐
-│  Logo  ShopHub Admin                           [user] │  ← Top bar
-├──────────────────────────────────────────────────────┤
-│ Sidebar  │                                           │
-│ Dashboard│           <Outlet />                      │
-│ Products │           (page content)                  │
-│ Categories│                                          │
-│ Orders   │                                           │
-│          │                                           │
-└──────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────┐
+│  Logo  ShopHub Admin                     [🔔(n)]  [🌙]  [👤] │  ← Top bar
+├──────────────────────────────────────────────────────────────┤
+│ Sidebar  │                                                    │
+│ Dashboard│         RealtimeProvider                          │
+│ Products │           <Outlet />                              │
+│ Categories│          (page content)                          │
+│ Orders   │                                                    │
+│ Team Chat│                                                    │
+│ Error PG │                                                    │
+│ Sign out │                                                    │
+└──────────────────────────────────────────────────────────────┘
 ```
 
-Sidebar contains all admin navigation links. Mobile version collapses to a hamburger with a slide-in drawer.
+**Header bell badge:** Subscribes to `useRealtimeStore(s => s.unreadCount)`. Clicking the bell calls `markAllRead()`.
+
+**`<Outlet />` wrapping:** `RealtimeProvider` wraps the `<Outlet />` inside `<main>`. This means the WebSocket connects when any admin page mounts and disconnects when the user leaves the admin panel entirely.
+
+**Nav items:** `NAV_ITEMS` (static) merged with conditionally added items:
+- **Team Chat** — shown when `featureFlags.realtimeChat === true`
+- **Error Playground** — shown when `featureFlags.errorPlayground === true`
+
+Mobile version collapses to a hamburger with a slide-in drawer (RTL-aware).
 
 ---
 
@@ -1179,6 +1222,20 @@ order.customer?.email ?? ''
 
 These guards protect against both legacy seed data (missing fields) and mock server responses before `normalizeOrder()` runs.
 
+### Realtime Chat — `/admin/realtime-chat`
+
+**File:** `src/pages/admin/RealtimeChatPage.tsx`
+
+WebSocket-powered team chat demo. Gate: `ADMIN` or `MANAGER` role + `realtimeChat` feature flag (enabled by default in dev). Demonstrates the full realtime layer:
+
+- Three pre-seeded rooms (General, Operations, Dev Team)
+- Optimistic message rendering — `sending` → `sent` / `failed` + retry button
+- Typing indicators (debounced, auto-cleared)
+- Live presence panel (online users count)
+- Connection status banner (connecting / reconnecting / disconnected)
+- Message skeleton while the WebSocket handshake is in progress
+- Notification badge in AdminLayout header driven by `useRealtimeStore.unreadCount`
+
 ### Error Playground — `/admin/error-playground`
 
 **File:** `src/pages/admin/ErrorPlaygroundPage.tsx`
@@ -1189,6 +1246,7 @@ Developer tool for testing all error display modes. Gate: `ADMIN` role + `errorP
 
 ```ts
 // src/config/whitelist.config.ts
+'/admin/realtime-chat':    { allowedRoles: ['ADMIN', 'MANAGER'], requiredFeatureFlags: ['realtimeChat'] },
 '/admin/error-playground': { allowedRoles: ['ADMIN'], requiredFeatureFlags: ['errorPlayground'] },
 '/admin/dashboard':        { allowedRoles: ['ADMIN', 'MANAGER'] },
 '/admin/products':         { allowedRoles: ['ADMIN', 'MANAGER'], matchPrefix: true },
@@ -1557,4 +1615,181 @@ The project runs with `erasableSyntaxOnly: true` in tsconfig. This means:
 
 ---
 
-*Last updated: 2026-03-19 — Added: cart persistence strategy, wishlist sync strategy, mock server cart/wishlist/order CRUD, Axios 4xx global routing, auth store logout cart/wishlist clearing, UserLayout async logout, AdminOrdersPage null-safety*
+---
+
+## 26. WebSocket Realtime Architecture
+
+**Files:** `src/features/realtime/`
+
+### Folder structure
+
+```
+features/realtime/
+├── types/socket.types.ts        # All shared type contracts
+├── socket/socket.manager.ts     # Singleton I/O manager
+├── store/realtime.store.ts      # Zustand state driven by WS events
+├── hooks/useAdminSocket.ts      # React hook — clean component API
+└── providers/RealtimeProvider.tsx  # Lifecycle manager
+```
+
+### Architecture overview
+
+```
+AdminLayout mounts
+  └── RealtimeProvider (useEffect)
+        └── socketManager.connect(wsUrl)
+              │
+              ├─ real mode   → new WebSocket(url?token=...)
+              └─ mock mode   → local timer simulation (same event API)
+
+Incoming event frame:
+  WebSocket.onmessage (or mock timer)
+    │
+    ├── dispatchToHandlers()  → registered useAdminSocket subscribers
+    └── routeEventToStore()   → useRealtimeStore (store always up-to-date)
+
+Component tree:
+  useAdminSocket()       → connectionStatus, sendMessage, subscribe
+  useRealtimeStore(sel)  → messages, onlineUsers, notifications, unreadCount
+```
+
+### SocketManager — `src/features/realtime/socket/socket.manager.ts`
+
+Singleton class (exported as `socketManager` instance). Handles all I/O so no React component touches `WebSocket` directly.
+
+#### Reconnect strategy
+
+| Attempt | Delay |
+|---|---|
+| 1st | 1 s |
+| 2nd | 2 s |
+| 3rd | 4 s |
+| 4th | 8 s |
+| 5th | 16 s (max) |
+
+After 5 failed attempts: `pushError('NETWORK_ERROR', { displayModeOverride: 'TOAST' })` + fall back to mock simulation mode.
+
+#### Heartbeat
+
+Client pings every 25 s. If no pong arrives within 10 s, the connection is considered dead and the manager closes the socket (triggering reconnect).
+
+#### Offline queue
+
+Messages sent while the socket is not `OPEN` are pushed to `offlineQueue: OutboundSocketMessage[]`. On reconnect, `drainQueue()` sends them in order.
+
+#### Auth close code `4001`
+
+If the server closes the socket with code `4001` (authentication failure), the manager pushes `SESSION_EXPIRED` as a PAGE error and stops reconnecting — the session is unrecoverable.
+
+#### Mock simulation mode
+
+Activated when `environment.apiSource === 'mock'`. The manager uses `setTimeout`/`setInterval` timers to generate realistic events:
+
+| Event | Frequency |
+|---|---|
+| Bot chat messages (with typing indicator) | Every 4–10 s |
+| Server notifications | Every 15–35 s |
+| Presence (initial seed) | On connect (staggered 400 ms) |
+
+The exact same `dispatchToHandlers` and `routeEventToStore` paths run in mock mode, so all UI components are unaware of whether they're connected to a real server.
+
+### useAdminSocket hook — `src/features/realtime/hooks/useAdminSocket.ts`
+
+```ts
+const {
+  connectionStatus,       // SocketConnectionStatus — reactive via Zustand
+  lastServerTimestamp,    // number | null
+  sendMessage,            // (msg: OutboundSocketMessage) => void — memoised
+  subscribe,              // <T>(type, handler) => void — memoised
+  unsubscribe,            // (type, handler) => void — memoised
+} = useAdminSocket();
+```
+
+**One connection, many subscribers.** Multiple components can call `useAdminSocket()` and all share the single `socketManager` singleton. No duplicate connections are created.
+
+**Selective re-renders.** The hook subscribes to `connectionStatus` and `lastServerTimestamp` only. Message data is read from `useRealtimeStore` with granular selectors to avoid unnecessary renders.
+
+**Subscription cleanup pattern:**
+
+```tsx
+useEffect(() => {
+  const handler = (event: SocketEvent<ChatMessage>) => { ... };
+  subscribe('chat:message', handler);
+  return () => unsubscribe('chat:message', handler);
+}, [subscribe, unsubscribe]);
+```
+
+### Realtime store — `src/features/realtime/store/realtime.store.ts`
+
+State is organized by room. The flat `Record<roomId, RoomState>` structure gives O(1) message insertion and per-room typing updates without iterating the entire list.
+
+**Message cap:** 200 messages per room (`.slice(-199)`) to bound memory usage.
+
+**Notification cap:** 50 notifications (`.slice(0, 50)`).
+
+### Event contract (server ↔ client)
+
+Every frame is a JSON-encoded `SocketEvent<T>`:
+
+```json
+{
+  "type": "chat:message",
+  "payload": {
+    "id": "uuid",
+    "roomId": "general",
+    "senderId": "user-123",
+    "senderName": "Alice Chen",
+    "senderInitials": "AC",
+    "text": "Hey team!",
+    "timestamp": 1700000000000,
+    "status": "sent"
+  },
+  "roomId": "general",
+  "timestamp": 1700000000000
+}
+```
+
+#### Supported event types
+
+| Type | Direction | Description |
+|---|---|---|
+| `chat:message` | ↔ | Chat message in a room |
+| `chat:typing_start` | ↔ | User started typing |
+| `chat:typing_stop` | ↔ | User stopped typing |
+| `presence:join` | ← | User connected to the admin panel |
+| `presence:leave` | ← | User disconnected |
+| `notification:new` | ← | Server push notification |
+| `room:subscribe` | → | Client subscribes to a room |
+| `room:unsubscribe` | → | Client unsubscribes from a room |
+| `system:ping` | → | Client heartbeat |
+| `system:pong` | ← | Server heartbeat reply |
+| `system:auth` | → | Post-connect auth token |
+| `system:error` | ← | Server-side error |
+
+### RealtimeProvider — `src/features/realtime/providers/RealtimeProvider.tsx`
+
+Thin component mounted inside `AdminLayout` that wraps `<Outlet />`. It calls `socketManager.connect()` in a `useEffect` and `socketManager.disconnect()` in the cleanup function. This means:
+
+- WS is alive for the entire admin session (not per-page)
+- Navigating between admin pages does NOT reconnect
+- Navigating away from the admin panel cleanly disconnects and resets store state
+
+### Error integration
+
+| Scenario | Action |
+|---|---|
+| Transient connection failure | `pushError('NETWORK_ERROR', { displayModeOverride: 'TOAST', onRetry })` |
+| Max retries exhausted | Same as above + fallback to mock mode |
+| Server auth failure (code 4001) | `pushError('SESSION_EXPIRED', { displayModeOverride: 'PAGE' })` |
+| No GlobalLoader | WebSocket never touches `useUiStore.activeApiRequestsCount` |
+
+### Scalability notes
+
+- **Room-level subscriptions:** In production, the client should send `room:subscribe` on room selection and `room:unsubscribe` when leaving. This prevents the server from broadcasting messages the client doesn't need.
+- **Presence namespace:** The current model sends presence to all admin users. For large teams, scope presence to active rooms.
+- **Message pagination:** The 200-message in-memory cap should pair with a server-side history API for initial room load and infinite scroll.
+- **Token rotation:** The `_retry` / `_loaderStarted` pattern from the Axios layer should be replicated for WS — reconnect after a silent token refresh by sending `system:auth` with the new token before retrying.
+
+---
+
+*Last updated: 2026-03-24 — Added: WebSocket realtime layer (SocketManager, useRealtimeStore, useAdminSocket, RealtimeProvider, RealtimeChatPage), AdminLayout notification bell + nav items, feature flag dev-merge behaviour, realtime chat whitelist rule*

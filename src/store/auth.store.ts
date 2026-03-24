@@ -94,7 +94,14 @@ function loadStoredFeatureFlags(): Record<string, boolean> {
   try {
     const raw = localStorage.getItem(FEATURE_FLAGS_STORAGE_KEY);
     if (!raw) return defaultFeatureFlags();
-    return JSON.parse(raw) as Record<string, boolean>;
+    const stored = JSON.parse(raw) as Record<string, boolean>;
+    // In dev, merge with defaults so newly added flags are available immediately
+    // without requiring a log-out/log-in cycle.
+    // Stored values take precedence over defaults (server-set flags are preserved).
+    if (import.meta.env.DEV) {
+      return { ...defaultFeatureFlags(), ...stored };
+    }
+    return stored;
   } catch {
     return defaultFeatureFlags();
   }
@@ -126,6 +133,7 @@ function defaultFeatureFlags(): Record<string, boolean> {
   if (import.meta.env.DEV) {
     return {
       errorPlayground: true,
+      realtimeChat:    true,
       betaReports:     false,
       analyticsV2:     false,
       newCheckout:     false,

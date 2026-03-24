@@ -34,10 +34,14 @@ import {
   Moon,
   ChevronRight,
   Layers,
+  MessageSquare,
+  Bell,
 } from 'lucide-react';
 import { useAuthStore } from '@/store/auth.store';
 import { useTheme } from '@/themes/theme.context';
 import { useI18n } from '@/i18n/use-i18n.hook';
+import { useRealtimeStore } from '@/features/realtime/store/realtime.store';
+import RealtimeProvider from '@/features/realtime/providers/RealtimeProvider';
 
 // ---------------------------------------------------------------------------
 // Navigation config
@@ -83,8 +87,14 @@ export default function AdminLayout() {
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
+  const unreadCount = useRealtimeStore((s) => s.unreadCount);
+  const markAllRead = useRealtimeStore((s) => s.markAllRead);
+
   const navItems = [
     ...NAV_ITEMS,
+    ...(featureFlags?.realtimeChat
+      ? [{ labelKey: 'admin.nav.realtimeChat', to: '/admin/realtime-chat', icon: <MessageSquare size={18} /> }]
+      : []),
     ...(featureFlags?.errorPlayground
       ? [{ labelKey: 'admin.nav.errorPlayground', to: '/admin/error-playground', icon: <Layers size={18} /> }]
       : []),
@@ -214,6 +224,21 @@ export default function AdminLayout() {
 
           {/* Right actions */}
           <div className="flex items-center gap-3">
+            {/* Notification bell */}
+            <button
+              type="button"
+              onClick={markAllRead}
+              aria-label={unreadCount > 0 ? `${unreadCount} unread notifications` : 'Notifications'}
+              className="relative p-1.5 rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+            >
+              <Bell size={18} />
+              {unreadCount > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center px-0.5">
+                  {unreadCount > 99 ? '99+' : unreadCount}
+                </span>
+              )}
+            </button>
+
             {/* Theme toggle */}
             <button
               type="button"
@@ -255,7 +280,9 @@ export default function AdminLayout() {
           role="main"
           className="flex-1 overflow-y-auto p-4 md:p-6 bg-gray-50 dark:bg-gray-900"
         >
-          <Outlet />
+          <RealtimeProvider>
+            <Outlet />
+          </RealtimeProvider>
         </main>
       </div>
     </div>
