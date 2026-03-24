@@ -48,6 +48,7 @@ import { ERROR_CONFIG_MAP } from '@/core/errors/error.config';
 import type { ErrorCode } from '@/core/errors/error.types';
 import type { ErrorActionButton } from '@/core/errors/error.types';
 import { useI18n } from '@/i18n/use-i18n.hook';
+import { usePageMeta } from '@/hooks/usePageMeta';
 
 // ---------------------------------------------------------------------------
 // Icon resolver
@@ -132,6 +133,7 @@ export interface ErrorPageProps {
  * ```
  */
 export default function ErrorPage(props: ErrorPageProps) {
+  usePageMeta('Error');
   const { translate } = useI18n();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();

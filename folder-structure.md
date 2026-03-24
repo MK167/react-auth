@@ -30,6 +30,7 @@ Static assets served as-is by Vite — never bundled.
 |------|---------|-----------|
 | `favicon.svg` | Browser tab icon | Auto-loaded by `index.html` |
 | `icons.svg` | SVG sprite sheet — all UI icons in one file | Referenced via `<use href="/icons.svg#icon-name">` anywhere in the app |
+| `robots.txt` | Search engine crawl directives; disallows `/admin/` from indexing | Served by Vite dev server and production build |
 
 ---
 
@@ -181,6 +182,7 @@ Global reusable hooks — not tied to one feature.
 |------|---------|-----------|
 | `useCartMerge.ts` | Merges guest cart with server cart after login | Called once after successful authentication |
 | `useDebounce.ts` | Delays a value update — prevents excessive API calls on fast input | Used in search inputs |
+| `usePageMeta.ts` | Sets `document.title` and `<meta name="description">` for the current page | Called at the top of every page component; format: "Page Name - ShopHub" |
 | `useSocialAuth.ts` | Wraps Firebase OAuth popup flow and maps result to app auth store | Called from `SocialLogin.tsx` button handlers |
 | `useWishlistSync.ts` | Syncs local wishlist to server after login | Called once after successful authentication |
 

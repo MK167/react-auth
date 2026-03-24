@@ -9,6 +9,7 @@ import { useWishlistSync } from "@/hooks/useWishlistSync";
 import { prefetchAdminDashboard } from "@/utils/prefetch";
 import { cookieService } from "@/utils/cookie.service";
 import { useI18n } from "@/i18n/use-i18n.hook";
+import { usePageMeta } from "@/hooks/usePageMeta";
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Mail, Lock } from "lucide-react";
@@ -62,6 +63,7 @@ function resolveRedirectTarget(
 // ---------------------------------------------------------------------------
 
 export default function Login() {
+  usePageMeta('Sign In', 'Sign in to your ShopHub account to access your orders, wishlist, and more.');
   const { setAuth } = useAuthStore();
   const navigate = useNavigate();
   const location = useLocation();

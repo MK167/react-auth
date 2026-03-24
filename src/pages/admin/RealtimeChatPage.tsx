@@ -34,6 +34,7 @@ import {
 import { useAdminSocket } from '@/features/realtime/hooks/useAdminSocket';
 import { useRealtimeStore } from '@/features/realtime/store/realtime.store';
 import { useAuthStore } from '@/store/auth.store';
+import { usePageMeta } from '@/hooks/usePageMeta';
 import type { ChatMessage } from '@/features/realtime/types/socket.types';
 
 // ---------------------------------------------------------------------------
@@ -189,6 +190,7 @@ function TypingIndicator({ names }: { names: string[] }) {
 // ---------------------------------------------------------------------------
 
 export default function RealtimeChatPage() {
+  usePageMeta('Realtime Chat', 'Admin realtime chat and live user monitoring.');
   const { connectionStatus, sendMessage } = useAdminSocket();
   const user = useAuthStore((s) => s.user);
 

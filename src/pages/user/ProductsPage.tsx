@@ -20,6 +20,7 @@ import { useDebounce } from '@/hooks/useDebounce';
 import { toProductSlugId } from '@/utils/slug';
 import { prefetchProductDetail } from '@/utils/prefetch';
 import { useI18n } from '@/i18n/use-i18n.hook';
+import { usePageMeta } from '@/hooks/usePageMeta';
 import type { Product, ProductCategory, PaginatedData } from '@/types/product.types';
 
 const PAGE_SIZE = 12;
@@ -149,6 +150,7 @@ function ProductCard({
  * Full product catalogue grid with search, filters, sorting, and pagination.
  */
 export default function ProductsPage() {
+  usePageMeta('Products', 'Browse and filter our full catalog of products. Fast shipping, easy returns.');
   const navigate = useNavigate();
   const { translate } = useI18n();
   const addItem = useCartStore((s) => s.addItem);
@@ -182,7 +184,7 @@ export default function ProductsPage() {
         category: selectedCategory || undefined,
       });
       setProducts(res.data.data ?? []);
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+       
       const { data: _data, ...meta } = res.data;
       setPagination(meta);
     } catch {

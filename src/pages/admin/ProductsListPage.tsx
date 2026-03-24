@@ -61,6 +61,7 @@ import { TableRowSkeleton } from '@/components/ui/Skeleton';
 import DeleteModal from '@/components/admin/DeleteModal';
 import { useDebounce } from '@/hooks/useDebounce';
 import { useI18n } from '@/i18n/use-i18n.hook';
+import { usePageMeta } from '@/hooks/usePageMeta';
 import type { Product, ProductCategory, PaginatedData } from '@/types/product.types';
 
 // ---------------------------------------------------------------------------
@@ -108,6 +109,7 @@ function StockBadge({ stock }: { stock: number }) {
  * delete confirmation.
  */
 export default function ProductsListPage() {
+  usePageMeta('Products', 'Manage your ShopHub product catalog — add, edit, and delete products.');
   const navigate = useNavigate();
   const { translate } = useI18n();
 

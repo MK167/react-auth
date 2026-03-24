@@ -27,12 +27,14 @@ import { ArrowLeft, Upload, AlertCircle } from 'lucide-react';
 import { productSchema, type ProductFormValues } from '@/schemas/product.schema';
 import { getProductById, updateProduct, getCategories } from '@/api/products.api';
 import { Skeleton } from '@/components/ui/Skeleton';
+import { usePageMeta } from '@/hooks/usePageMeta';
 import type { ProductCategory } from '@/types/product.types';
 
 /**
  * Admin form page for editing an existing product.
  */
 export default function EditProductPage() {
+  usePageMeta('Edit Product', 'Update an existing product in the ShopHub catalog.');
   const navigate = useNavigate();
   const { id: productId } = useParams<{ id: string }>();
 

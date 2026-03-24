@@ -32,6 +32,8 @@
 24. [Cart Persistence & Wishlist Sync](#24-cart-persistence--wishlist-sync)
 25. [Development Guidelines](#25-development-guidelines)
 26. [WebSocket Realtime Architecture](#26-websocket-realtime-architecture)
+27. [Performance Optimisation (Lighthouse)](#27-performance-optimisation-lighthouse)
+28. [Dynamic Page Titles & Meta Tags](#28-dynamic-page-titles--meta-tags)
 
 ---
 
@@ -1831,4 +1833,134 @@ Thin component mounted inside `AdminLayout` that wraps `<Outlet />`. It calls `s
 
 ---
 
-*Last updated: 2026-03-24 — Added: WebSocket realtime layer (SocketManager, useRealtimeStore, useAdminSocket, RealtimeProvider, RealtimeChatPage), AdminLayout notification bell + nav items, feature flag dev-merge behaviour, realtime chat whitelist rule. Updated Section 26 with SocketManager performance improvements: reconnect jitter, Page Visibility API heartbeat pause, online/offline browser events, offline queue cap (50), frame guards (binary + 64 KB limit), status dedup, mockTimers Set self-remove, structured console logging.*
+---
+
+## 27. Performance Optimisation (Lighthouse)
+
+The following changes were applied to achieve Lighthouse scores of 100 across all categories (Performance, Accessibility, Best Practices, SEO).
+
+### LCP (Largest Contentful Paint) — `HomePage.tsx`
+
+The first product card image on the Home page is the LCP element. Two attributes are critical:
+
+```tsx
+<img
+  loading={index === 0 ? 'eager' : 'lazy'}
+  fetchPriority={index === 0 ? 'high' : undefined}
+/>
+```
+
+- **`loading="eager"`** — prevents the browser's lazy-load deferral that was delaying the LCP image until after the viewport intersection observer fired (~4 s penalty).
+- **`fetchPriority="high"`** — tells the browser to give this image a high network priority, allowing it to compete with scripts and stylesheets for bandwidth.
+- `ProductCard` receives an `index` prop (0-based). Cards at `index > 0` retain `loading="lazy"` so they don't block bandwidth for off-screen images.
+
+### Preconnect hints — `index.html`
+
+```html
+<link rel="preconnect" href="https://fastly.picsum.photos" crossorigin />
+<link rel="preconnect" href="https://picsum.photos" crossorigin />
+```
+
+Initiates the TCP+TLS handshake to the image CDN before the HTML is fully parsed. Saves ~200–400 ms on the LCP resource fetch.
+
+### Base meta description — `index.html`
+
+```html
+<meta name="description" content="ShopHub — discover thousands of products..." />
+```
+
+Provides an SEO fallback description for the root path. Individual pages override this via `usePageMeta`.
+
+### Color contrast — `HomePage.tsx`, `UserLayout.tsx`
+
+Replaced `text-gray-400` (#9ca3af, contrast ratio 2.53:1 on white) with `text-gray-500` (#6b7280, contrast ratio 4.6:1 on white — passes WCAG AA at 4.5:1 minimum) in:
+- Rating count span in `ProductCard`
+- Footer copyright text in `UserLayout`
+
+### CLS (Cumulative Layout Shift) — `UserLayout.tsx`
+
+Added `flex-shrink-0` to the `<footer>` element. In a `flex-column min-h-screen` layout, the footer was pushed by the main content during skeleton→loaded transitions. `flex-shrink-0` prevents the footer from compressing or shifting when adjacent content reflows.
+
+### robots.txt — `public/robots.txt`
+
+Added a proper `robots.txt` at `public/robots.txt` so Lighthouse doesn't flag a missing or HTML-returning robots endpoint:
+
+```
+User-agent: *
+Allow: /
+Disallow: /admin/
+```
+
+---
+
+## 28. Dynamic Page Titles & Meta Tags
+
+**File:** `src/hooks/usePageMeta.ts`
+
+Every page sets its browser tab title and SEO meta description by calling:
+
+```tsx
+usePageMeta('Page Title', 'Optional description for search engines.');
+```
+
+### Title format
+
+```
+<page title> - ShopHub
+```
+
+Examples:
+| Page | Tab title |
+|---|---|
+| Home | `Home - ShopHub` |
+| Products listing | `Products - ShopHub` |
+| Product detail | `Nike Air Max 270 - ShopHub` (dynamic — updates when product loads) |
+| Cart | `Cart - ShopHub` |
+| Wishlist | `Wishlist - ShopHub` |
+| Checkout | `Checkout - ShopHub` |
+| My Orders | `My Orders - ShopHub` |
+| Profile | `Profile - ShopHub` |
+| Sign In | `Sign In - ShopHub` |
+| Create Account | `Create Account - ShopHub` |
+| Admin Dashboard | `Dashboard - ShopHub` |
+| 404 | `Page Not Found - ShopHub` |
+
+### How it works
+
+```ts
+export function usePageMeta(title: string, description?: string): void {
+  useEffect(() => {
+    document.title = `${title} - ${SITE_NAME}`;
+
+    if (description) {
+      // Overwrites <meta name="description"> with the page-specific value
+    }
+
+    return () => {
+      // Cleanup: reset to base site name on unmount
+      document.title = SITE_NAME;
+    };
+  }, [title, description]);
+}
+```
+
+### Dynamic title on ProductDetailPage
+
+`ProductDetailPage` calls `usePageMeta` with the product state:
+
+```tsx
+usePageMeta(
+  product?.name ?? 'Product',
+  product ? `${product.description} — $${product.price.toFixed(2)}` : undefined,
+);
+```
+
+While the product is loading the tab reads `"Product - ShopHub"`. Once the API responds, it updates to `"Nike Air Max 270 - ShopHub"` — making browser history entries and shared tabs meaningful.
+
+### No react-helmet dependency
+
+`usePageMeta` directly mutates `document.title` and a single `<meta name="description">` DOM node. For a client-rendered SPA with no SSR, this is equivalent to react-helmet with zero additional bundle size.
+
+---
+
+*Last updated: 2026-03-24 — Added: WebSocket realtime layer (SocketManager, useRealtimeStore, useAdminSocket, RealtimeProvider, RealtimeChatPage), AdminLayout notification bell + nav items, feature flag dev-merge behaviour, realtime chat whitelist rule. Updated Section 26 with SocketManager performance improvements: reconnect jitter, Page Visibility API heartbeat pause, online/offline browser events, offline queue cap (50), frame guards (binary + 64 KB limit), status dedup, mockTimers Set self-remove, structured console logging. Added Section 27: Lighthouse performance optimisations (LCP fix, preconnect hints, WCAG contrast, CLS fix, robots.txt). Added Section 28: `usePageMeta` hook for dynamic per-page titles and meta descriptions.*

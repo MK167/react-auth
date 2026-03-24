@@ -14,7 +14,9 @@
       "Bash(npx husky:*)",
       "Bash(npx commitlint:*)",
       "Bash(echo \"exit: $?\")",
-      "Bash(npx vitest:*)"
+      "Bash(npx vitest:*)",
+      "Bash(node -e \"const pkg = require\\(''./node_modules/eslint-plugin-react-hooks/package.json''\\); console.log\\(pkg.version\\)\")",
+      "Bash(npx eslint:*)"
     ]
   }
 }

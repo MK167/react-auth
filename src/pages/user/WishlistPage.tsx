@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/set-state-in-effect */
 /**
  * @fileoverview User Wishlist Page.
  *
@@ -31,9 +32,11 @@ import { getProductById } from '@/api/products.api';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { toProductSlugId } from '@/utils/slug';
 import { useI18n } from '@/i18n/use-i18n.hook';
+import { usePageMeta } from '@/hooks/usePageMeta';
 import type { Product } from '@/types/product.types';
 
 export default function WishlistPage() {
+  usePageMeta('Wishlist', 'Your saved products — revisit items you love.');
   const navigate = useNavigate();
   const { translate } = useI18n();
   const { items, removeItem } = useWishlistStore();

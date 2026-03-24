@@ -352,9 +352,10 @@ export default function UserLayout() {
         <Outlet />
       </main>
 
-      {/* Footer */}
-      <footer className="border-t border-gray-200 dark:border-gray-800 mt-12 py-6 text-center">
-        <p className="text-sm text-gray-400 dark:text-gray-500">
+      {/* Footer — flex-shrink-0 prevents CLS caused by layout reflow when
+          main content height changes during data loading. */}
+      <footer className="flex-shrink-0 border-t border-gray-200 dark:border-gray-800 py-6 text-center">
+        <p className="text-sm text-gray-500 dark:text-gray-400">
           © {new Date().getFullYear()} ShopHub. All rights reserved.
         </p>
       </footer>

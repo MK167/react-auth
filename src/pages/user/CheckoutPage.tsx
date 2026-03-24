@@ -28,6 +28,7 @@ import { authUrl } from '@/config/Define';
 import { checkoutSchema, isDeclinedCard } from '@/schemas/checkout.schema';
 import type { CheckoutFormValues } from '@/schemas/checkout.schema';
 import { useI18n } from '@/i18n/use-i18n.hook';
+import { usePageMeta } from '@/hooks/usePageMeta';
 
 // ---------------------------------------------------------------------------
 // Field error helper
@@ -62,6 +63,7 @@ type CheckoutStep = 'form' | 'success';
 // ---------------------------------------------------------------------------
 
 export default function CheckoutPage() {
+  usePageMeta('Checkout', 'Complete your purchase securely at ShopHub.');
   const navigate = useNavigate();
   const { translate } = useI18n();
   const { items, getTotalPrice, getTotalItems, clearCart } = useCartStore();

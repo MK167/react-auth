@@ -13,11 +13,13 @@ import { User, Mail, Shield, LogOut, ShoppingBag } from 'lucide-react';
 import { useAuthStore } from '@/store/auth.store';
 import { useCartStore } from '@/store/cart.store';
 import { useI18n } from '@/i18n/use-i18n.hook';
+import { usePageMeta } from '@/hooks/usePageMeta';
 
 /**
  * Profile page showing user details, role, and quick-action links.
  */
 export default function ProfilePage() {
+  usePageMeta('Profile', 'Manage your ShopHub account details and preferences.');
   const navigate = useNavigate();
   const { translate } = useI18n();
   const { user, logout } = useAuthStore();

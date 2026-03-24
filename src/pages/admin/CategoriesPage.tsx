@@ -47,6 +47,7 @@ import { getCategories } from '@/api/products.api';
 import { createCategory, updateCategory, deleteCategory } from '@/api/categories.api';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { useI18n } from '@/i18n/use-i18n.hook';
+import { usePageMeta } from '@/hooks/usePageMeta';
 import type { ProductCategory } from '@/types/product.types';
 
 // ---------------------------------------------------------------------------
@@ -174,6 +175,7 @@ function ConfirmDeleteModal({
  * delete confirmation modal.
  */
 export default function CategoriesPage() {
+  usePageMeta('Categories', 'Manage product categories in ShopHub.');
   const { translate } = useI18n();
   const [categories, setCategories] = useState<ProductCategory[]>([]);
   const [loading, setLoading] = useState(true);

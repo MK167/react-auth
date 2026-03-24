@@ -34,6 +34,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useI18n } from '@/i18n/use-i18n.hook';
+import { usePageMeta } from '@/hooks/usePageMeta';
 import {
   Package,
   ShoppingBag,
@@ -708,6 +709,7 @@ function ErrorSimulatorPanel() {
 // ---------------------------------------------------------------------------
 
 export default function DashboardPage() {
+  usePageMeta('Dashboard', 'ShopHub admin dashboard — overview of products, orders, and revenue.');
   const navigate = useNavigate();
   const { translate } = useI18n();
   const [totalProducts, setTotalProducts] = useState<number | null>(null);

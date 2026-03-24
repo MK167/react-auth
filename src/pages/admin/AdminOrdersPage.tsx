@@ -58,6 +58,7 @@ import {
 import { getAdminOrders, updateOrderStatus } from '@/api/orders.api';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { useI18n } from '@/i18n/use-i18n.hook';
+import { usePageMeta } from '@/hooks/usePageMeta';
 import type { Order, OrderStatus } from '@/types/order.types';
 import { ORDER_STATUSES } from '@/types/order.types';
 import type { PaginatedData } from '@/types/product.types';
@@ -246,6 +247,7 @@ function OrderDetailModal({
  * and an order detail modal.
  */
 export default function AdminOrdersPage() {
+  usePageMeta('Orders', 'Manage and track all customer orders in ShopHub.');
   const { translate } = useI18n();
   const [orders, setOrders] = useState<Order[]>([]);
   const [pagination, setPagination] = useState<Omit<

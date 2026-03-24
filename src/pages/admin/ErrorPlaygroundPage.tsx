@@ -28,6 +28,7 @@ import { ERROR_CONFIG_MAP } from '@/core/errors/error.config';
 import type { ErrorCode, ErrorDisplayMode } from '@/core/errors/error.types';
 import { useAuthStore } from '@/store/auth.store';
 import { useI18n } from '@/i18n/use-i18n.hook';
+import { usePageMeta } from '@/hooks/usePageMeta';
 import { useUiStore } from '@/store/ui.store';
 import { ErrorBoundary } from '@/core/errors/ErrorBoundary';
 
@@ -138,6 +139,7 @@ function CrashableWidget() {
 // ---------------------------------------------------------------------------
 
 export default function ErrorPlaygroundPage() {
+  usePageMeta('Error Playground', 'Test and preview error states in ShopHub admin.');
   const navigate = useNavigate();
   const { translate } = useI18n();
   const { pushError, clearAll } = useErrorStore();

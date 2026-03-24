@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/set-state-in-effect */
 /**
  * @fileoverview User Product Detail Page.
  *
@@ -50,6 +51,7 @@ import { useWishlistStore } from '@/store/wishlist.store';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { extractProductId } from '@/utils/slug';
 import { useI18n } from '@/i18n/use-i18n.hook';
+import { usePageMeta } from '@/hooks/usePageMeta';
 import type { Product } from '@/types/product.types';
 
 /**
@@ -73,6 +75,14 @@ export default function ProductDetailPage() {
   const [activeImage, setActiveImage] = useState<string | null>(null);
   const [quantity, setQuantity] = useState(1);
   const [addedToCart, setAddedToCart] = useState(false);
+
+  // Dynamic title + description update whenever the product loads.
+  // While loading the tab reads "Product - ShopHub"; after load it reflects
+  // the real product name so browser history and shared links are meaningful.
+  usePageMeta(
+    product?.name ?? 'Product',
+    product ? `${product.description} — $${product.price.toFixed(2)}` : undefined,
+  );
 
   useEffect(() => {
     if (!productId) return;

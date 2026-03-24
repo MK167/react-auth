@@ -11,6 +11,7 @@
 import { useNavigate } from 'react-router-dom';
 import { Package, ArrowRight, Clock, CheckCircle, Truck, XCircle } from 'lucide-react';
 import { useI18n } from '@/i18n/use-i18n.hook';
+import { usePageMeta } from '@/hooks/usePageMeta';
 
 // ---------------------------------------------------------------------------
 // Mock data
@@ -42,6 +43,7 @@ const MOCK_ORDERS: MockOrder[] = [
  * Orders history page showing past and active orders with status badges.
  */
 export default function OrdersPage() {
+  usePageMeta('My Orders', 'Track and manage your ShopHub orders.');
   const navigate = useNavigate();
   const { translate } = useI18n();
 

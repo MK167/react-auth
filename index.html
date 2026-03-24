@@ -4,7 +4,16 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="ShopHub — discover thousands of products with fast shipping, easy returns, and secure checkout." />
     <title>ShopHub</title>
+
+    <!--
+      Preconnect to the image CDN used by product photos.
+      Establishing the TCP+TLS handshake early saves ~200–400 ms on the
+      Largest Contentful Paint image, which is fetched from this origin.
+    -->
+    <link rel="preconnect" href="https://fastly.picsum.photos" crossorigin />
+    <link rel="preconnect" href="https://picsum.photos" crossorigin />
 
     <!--
       Apply dark class before first paint to prevent FOUC for dark-mode users.

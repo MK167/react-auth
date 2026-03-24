@@ -34,11 +34,13 @@ import { useCartStore } from '@/store/cart.store';
 import { toProductSlugId } from '@/utils/slug';
 import { prefetchCheckout } from '@/utils/prefetch';
 import { useI18n } from '@/i18n/use-i18n.hook';
+import { usePageMeta } from '@/hooks/usePageMeta';
 
 /**
  * Shopping cart page — line items, quantity controls, totals, and checkout CTA.
  */
 export default function CartPage() {
+  usePageMeta('Cart', 'Review your cart items and proceed to secure checkout.');
   const navigate = useNavigate();
   const { translate } = useI18n();
   const { items, removeItem, updateQuantity, clearCart, getTotalPrice, getTotalItems } =

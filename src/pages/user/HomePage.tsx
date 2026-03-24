@@ -24,6 +24,7 @@ import { ProductCardSkeleton } from '@/components/ui/Skeleton';
 import { toProductSlugId } from '@/utils/slug';
 import { prefetchProductDetail } from '@/utils/prefetch';
 import { useI18n } from '@/i18n/use-i18n.hook';
+import { usePageMeta } from '@/hooks/usePageMeta';
 import type { Product } from '@/types/product.types';
 
 // ---------------------------------------------------------------------------
@@ -32,11 +33,18 @@ import type { Product } from '@/types/product.types';
 
 interface ProductCardProps {
   product: Product;
+  /**
+   * 0-based position in the grid.
+   * The first card (index 0) is the Largest Contentful Paint element on the
+   * home page — its image must NOT be lazy-loaded and should carry
+   * fetchpriority="high" so the browser fetches it immediately.
+   */
+  index: number;
   onAddToCart: (product: Product) => void;
   onNavigate: (slugId: string) => void;
 }
 
-function ProductCard({ product, onAddToCart, onNavigate }: ProductCardProps) {
+function ProductCard({ product, index, onAddToCart, onNavigate }: ProductCardProps) {
   const { hasItem, toggleItem } = useWishlistStore();
   const { translate } = useI18n();
   const isWishlisted = hasItem(product._id);
@@ -57,7 +65,8 @@ function ProductCard({ product, onAddToCart, onNavigate }: ProductCardProps) {
           <img
             src={product.mainImage.url}
             alt={product.name}
-            loading="lazy"
+            loading={index === 0 ? 'eager' : 'lazy'}
+            fetchPriority={index === 0 ? 'high' : undefined}
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
           />
         ) : (
@@ -112,7 +121,8 @@ function ProductCard({ product, onAddToCart, onNavigate }: ProductCardProps) {
               className={i < 4 ? 'text-amber-400 fill-amber-400' : 'text-gray-300 dark:text-gray-600'}
             />
           ))}
-          <span className="text-xs text-gray-400 ml-1">(4.0)</span>
+          {/* text-gray-500 ensures ≥ 4.5:1 contrast ratio on white (WCAG AA) */}
+          <span className="text-xs text-gray-500 ml-1">(4.0)</span>
         </div>
 
         {/* Price + cart button */}
@@ -144,6 +154,7 @@ function ProductCard({ product, onAddToCart, onNavigate }: ProductCardProps) {
  * User-facing home page with hero banner and featured product grid.
  */
 export default function HomePage() {
+  usePageMeta('Home', 'Discover thousands of products with fast shipping, easy returns, and secure checkout at ShopHub.');
   const navigate = useNavigate();
   const { translate } = useI18n();
   const addItem = useCartStore((s) => s.addItem);
@@ -221,10 +232,11 @@ export default function HomePage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
           {loading
             ? Array.from({ length: 8 }).map((_, i) => <ProductCardSkeleton key={i} />)
-            : products.map((product) => (
+            : products.map((product, i) => (
                 <ProductCard
                   key={product._id}
                   product={product}
+                  index={i}
                   onAddToCart={(p) => addItem(p, 1)}
                   onNavigate={(slugId) => navigate(`/products/${slugId}`)}
                 />
