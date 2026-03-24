@@ -204,7 +204,7 @@ export function useContent(): ContentService {
 
       return i18nFallback;
     },
-    [t, lang],
+    [translate, lang],
   );
 
   const prefetch = useCallback(
@@ -213,7 +213,7 @@ export function useContent(): ContentService {
       const i18nFallback = translate(key, key);
       await fetchFromCms(key, lang, i18nFallback);
     },
-    [t, lang],
+    [translate, lang],
   );
 
   return {
