@@ -1659,23 +1659,62 @@ Singleton class (exported as `socketManager` instance). Handles all I/O so no Re
 
 #### Reconnect strategy
 
-| Attempt | Delay |
-|---|---|
-| 1st | 1 s |
-| 2nd | 2 s |
-| 3rd | 4 s |
-| 4th | 8 s |
-| 5th | 16 s (max) |
+Exponential backoff with ±30% random jitter to prevent thundering-herd when multiple admin tabs lose connection simultaneously.
+
+| Attempt | Base delay | With max jitter (+30%) |
+|---|---|---|
+| 1st | 1 s | up to 1.3 s |
+| 2nd | 2 s | up to 2.6 s |
+| 3rd | 4 s | up to 5.2 s |
+| 4th | 8 s | up to 10.4 s |
+| 5th | 16 s (capped at 30 s max) | up to 20.8 s |
 
 After 5 failed attempts: `pushError('NETWORK_ERROR', { displayModeOverride: 'TOAST' })` + fall back to mock simulation mode.
 
+The reconnect timer is **suspended** on the `offline` browser event and re-triggered immediately on `online`, so no retry attempts are wasted without a network connection.
+
 #### Heartbeat
 
-Client pings every 25 s. If no pong arrives within 10 s, the connection is considered dead and the manager closes the socket (triggering reconnect).
+Client pings every 25 s. If no pong arrives within 10 s, the manager closes the dead socket (triggering reconnect).
+
+**Page Visibility API:** The heartbeat is **paused** when `document.visibilityState === 'hidden'` and resumed on tab focus. This prevents false pong-timeouts from Chromium timer throttling and avoids unnecessary server wake-ups.
 
 #### Offline queue
 
-Messages sent while the socket is not `OPEN` are pushed to `offlineQueue: OutboundSocketMessage[]`. On reconnect, `drainQueue()` sends them in order.
+Messages sent while the socket is not `OPEN` are pushed to `offlineQueue: OutboundSocketMessage[]`, capped at **50 messages** (oldest dropped when full). On reconnect, `drainQueue()` sends them in order and logs the count.
+
+#### Frame guards
+
+| Guard | Behaviour |
+|---|---|
+| Binary frames | Silently ignored — this protocol is text-only |
+| Oversized frames (> 64 KB) | Dropped before `JSON.parse` — prevents memory spike from malformed payloads |
+| Malformed JSON | Caught, warning logged, manager continues |
+
+#### Performance optimisations
+
+| Optimisation | Detail |
+|---|---|
+| `setStatus()` dedup | No-op when new status equals current — prevents spurious Zustand `set()` and React re-renders |
+| `mockTimers: Set` + self-remove | Each timer removes itself from the `Set` after firing — no stale ID accumulation |
+| `startHeartbeat()` guard | Calls `stopHeartbeat()` first — prevents double-interval if called twice |
+
+#### Console logging
+
+Every lifecycle event emits a timestamped, colour-coded console line:
+
+```
+[Socket 14:23:01.042] connect() called  url=ws://...
+[Socket 14:23:01.043] status: idle → connecting
+[Socket 14:23:25.844] → ping
+[Socket 14:23:25.845] ← pong  (server alive)
+[Socket 14:23:50.000] tab hidden — pausing heartbeat
+⚠ [Socket 14:24:01.000] browser offline — suspending reconnect timer
+[Socket 14:24:15.001] reconnect 1/5 in 1042 ms  (base=1000 ms, jitter=42 ms)
+⚠ [Socket 14:24:01.000] pong timeout after 10000 ms — closing dead socket
+```
+
+Filter by `[Socket` in the browser Console tab to isolate all socket logs.
 
 #### Auth close code `4001`
 
@@ -1683,7 +1722,7 @@ If the server closes the socket with code `4001` (authentication failure), the m
 
 #### Mock simulation mode
 
-Activated when `environment.apiSource === 'mock'`. The manager uses `setTimeout`/`setInterval` timers to generate realistic events:
+Activated when `environment.apiSource === 'mock'`. Timer-driven — produces the exact same events as a real server via `dispatchToHandlers` + `routeEventToStore`, so all UI components are unaware of which mode is active.
 
 | Event | Frequency |
 |---|---|
@@ -1691,7 +1730,7 @@ Activated when `environment.apiSource === 'mock'`. The manager uses `setTimeout`
 | Server notifications | Every 15–35 s |
 | Presence (initial seed) | On connect (staggered 400 ms) |
 
-The exact same `dispatchToHandlers` and `routeEventToStore` paths run in mock mode, so all UI components are unaware of whether they're connected to a real server.
+Timer IDs are stored in a `Set<ReturnType<typeof setTimeout>>`. Each timer calls `this.mockTimers.delete(id)` before its callback runs — the `Set` stays lean for the lifetime of the session with no memory leak from resolved IDs.
 
 ### useAdminSocket hook — `src/features/realtime/hooks/useAdminSocket.ts`
 
@@ -1792,4 +1831,4 @@ Thin component mounted inside `AdminLayout` that wraps `<Outlet />`. It calls `s
 
 ---
 
-*Last updated: 2026-03-24 — Added: WebSocket realtime layer (SocketManager, useRealtimeStore, useAdminSocket, RealtimeProvider, RealtimeChatPage), AdminLayout notification bell + nav items, feature flag dev-merge behaviour, realtime chat whitelist rule*
+*Last updated: 2026-03-24 — Added: WebSocket realtime layer (SocketManager, useRealtimeStore, useAdminSocket, RealtimeProvider, RealtimeChatPage), AdminLayout notification bell + nav items, feature flag dev-merge behaviour, realtime chat whitelist rule. Updated Section 26 with SocketManager performance improvements: reconnect jitter, Page Visibility API heartbeat pause, online/offline browser events, offline queue cap (50), frame guards (binary + 64 KB limit), status dedup, mockTimers Set self-remove, structured console logging.*

@@ -315,11 +315,14 @@ const unreadCount = useRealtimeStore((s) => s.unreadCount);
 | Feature | Detail |
 |---|---|
 | Singleton | One `WebSocket` per browser tab, shared across all hooks |
-| Reconnect | Exponential backoff — 1 s → 2 s → 4 s → 8 s → 16 s (max 5 attempts) |
-| Heartbeat | Client-side ping every 25 s; 10 s pong timeout triggers reconnect |
-| Offline queue | Messages sent while disconnected are queued and drained on reconnect |
-| Mock mode | Auto-activated in dev (`apiSource === 'mock'`) — simulates server events locally |
+| Reconnect | Exponential backoff + ±30% jitter — 1 s → 2 s → 4 s → 8 s → 16 s (max 5 attempts) |
+| Heartbeat | Client-side ping every 25 s; 10 s pong timeout triggers reconnect. Paused when tab is hidden (Page Visibility API) |
+| Offline queue | Messages queued (cap: 50) while disconnected and drained in order on reconnect. Retries suspended while browser is offline (`offline` event) and re-triggered on `online` |
+| Mock mode | Auto-activated in dev (`apiSource === 'mock'`) — timer-driven simulation using the same event API. Mock timers self-remove from a `Set` after firing (no memory leak) |
 | Error routing | Connection failures → `pushError('NETWORK_ERROR', { displayModeOverride: 'TOAST' })` |
+| Frame guards | Binary frames ignored; oversized frames (> 64 KB) dropped before parsing |
+| Status dedup | `setStatus()` is a no-op when status is unchanged — no spurious Zustand re-renders |
+| Console logging | Timestamped, colour-coded `[Socket HH:mm:ss.mmm]` logs for every lifecycle event |
 | No GlobalLoader | WebSocket activity never touches the Axios semaphore |
 
 Demo page: `/admin/realtime-chat` (requires `realtimeChat` feature flag, enabled by default in dev)
