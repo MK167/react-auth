@@ -44,21 +44,21 @@ describe('DeleteModal', () => {
       const onClose = vi.fn();
       render(<DeleteModal {...baseProps} onClose={onClose} />);
       await userEvent.click(screen.getByRole('button', { name: /cancel/i }));
-      expect(onClose).toHaveBeenCalledOnce();
+      expect(onClose).toHaveBeenCalledTimes(1);
     });
 
     it('calls onConfirm when Delete is clicked', async () => {
       const onConfirm = vi.fn();
       render(<DeleteModal {...baseProps} onConfirm={onConfirm} />);
       await userEvent.click(screen.getByRole('button', { name: /delete product/i }));
-      expect(onConfirm).toHaveBeenCalledOnce();
+      expect(onConfirm).toHaveBeenCalledTimes(1);
     });
 
     it('calls onClose when the close icon button is clicked', async () => {
       const onClose = vi.fn();
       render(<DeleteModal {...baseProps} onClose={onClose} />);
       await userEvent.click(screen.getByRole('button', { name: /close modal/i }));
-      expect(onClose).toHaveBeenCalledOnce();
+      expect(onClose).toHaveBeenCalledTimes(1);
     });
 
     it('calls onClose when backdrop is clicked', async () => {
@@ -67,7 +67,7 @@ describe('DeleteModal', () => {
       // The backdrop has role="presentation"
       const backdrop = document.querySelector('[role="presentation"]')!;
       await userEvent.click(backdrop);
-      expect(onClose).toHaveBeenCalledOnce();
+      expect(onClose).toHaveBeenCalledTimes(1);
     });
   });
 

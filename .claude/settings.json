@@ -18,7 +18,8 @@
       "Bash(node -e \"const pkg = require\\(''./node_modules/eslint-plugin-react-hooks/package.json''\\); console.log\\(pkg.version\\)\")",
       "Bash(npx eslint:*)",
       "Bash(npx storybook@latest init --yes)",
-      "Bash(npx storybook:*)"
+      "Bash(npx storybook:*)",
+      "Bash(grep -n \"from ''@storybook/react''\" \"/Volumes/DATA/My Projects/ReactJS/react-auth/src/components/auth/Divider.stories.tsx\" \"/Volumes/DATA/My Projects/ReactJS/react-auth/src/components/auth/common/error-notification/ErrorNotification.stories.tsx\" \"/Volumes/DATA/My Projects/ReactJS/react-auth/src/components/auth/common/icons/FacebookIcon.stories.tsx\")"
     ]
   }
 }

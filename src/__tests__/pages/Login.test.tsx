@@ -7,7 +7,7 @@ vi.mock('@/i18n/use-i18n.hook', () => ({
   useI18n: () => ({ translate: (k: string, fb?: string) => fb ?? k }),
 }));
 vi.mock('@/store/auth.store', () => ({ useAuthStore: vi.fn() }));
-vi.mock('@/api/auth.api', () => ({ login: vi.fn() }));
+vi.mock('@/api/auth.api', () => ({ loginApi: vi.fn() }));
 vi.mock('@/components/auth/social-media-auth/SocialLogin', () => ({
   default: () => <div data-testid="social-login" />,
 }));
@@ -16,11 +16,9 @@ vi.mock('@/components/auth/Divider', () => ({
 }));
 
 import { useAuthStore } from '@/store/auth.store';
-import { login } from '@/api/auth.api';
 import Login from '@/pages/Login';
 
 const mockUseAuthStore = useAuthStore as unknown as ReturnType<typeof vi.fn>;
-const mockLogin = login as ReturnType<typeof vi.fn>;
 
 function renderPage() {
   mockUseAuthStore.mockReturnValue({ setUser: vi.fn(), user: null });

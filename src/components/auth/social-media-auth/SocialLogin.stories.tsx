@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from '@storybook/react';
+import type { Meta, StoryObj } from '@storybook/react-vite';
 import SocialLogin from './SocialLogin';
 
 // Mock the useSocialAuth hook at the module level for Storybook

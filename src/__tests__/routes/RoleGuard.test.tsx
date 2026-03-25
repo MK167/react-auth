@@ -10,7 +10,7 @@ vi.mock('@/store/auth.store', () => ({
 import { useAuthStore } from '@/store/auth.store';
 const mockUseAuthStore = useAuthStore as unknown as ReturnType<typeof vi.fn>;
 
-function renderGuard(user: { _id: string; role: string } | null, allowedRoles: string[]) {
+function renderGuard(_user: { _id: string; role: string } | null, allowedRoles: string[]) {
   return render(
     <MemoryRouter initialEntries={['/admin']}>
       <Routes>

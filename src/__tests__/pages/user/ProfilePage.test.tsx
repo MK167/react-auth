@@ -10,11 +10,11 @@ vi.mock('@/store/auth.store', () => ({ useAuthStore: vi.fn() }));
 vi.mock('@/api/auth.api', () => ({ getMe: vi.fn(), updateProfile: vi.fn() }));
 
 import { useAuthStore } from '@/store/auth.store';
-import { getMe } from '@/api/auth.api';
+import * as authApi from '@/api/auth.api';
 import ProfilePage from '@/pages/user/ProfilePage';
 
 const mockUseAuthStore = useAuthStore as unknown as ReturnType<typeof vi.fn>;
-const mockGetMe = getMe as ReturnType<typeof vi.fn>;
+const mockGetMe = (authApi as unknown as Record<string, ReturnType<typeof vi.fn>>)['getMe'];
 
 describe('ProfilePage', () => {
   it('renders the page heading', async () => {

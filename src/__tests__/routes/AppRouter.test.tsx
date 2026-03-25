@@ -1,5 +1,5 @@
 import { render, screen } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, Outlet } from 'react-router-dom';
 import { vi } from 'vitest';
 import AppRouter from '@/routes/AppRouter';
 
@@ -28,10 +28,7 @@ vi.mock('@/pages/admin/RealtimeChatPage', () => ({ default: () => <div>Realtime 
 
 vi.mock('@/layouts/AuthLayout', () => ({ default: () => <div><div data-testid="auth-layout-outlet" /></div> }));
 vi.mock('@/layouts/UserLayout', () => ({
-  default: () => {
-    const { Outlet } = require('react-router-dom');
-    return <div><Outlet /></div>;
-  },
+  default: () => <div><Outlet /></div>,
 }));
 vi.mock('@/layouts/AdminLayout', () => ({ default: () => <div>Admin Layout</div> }));
 vi.mock('@/components/common/GlobalLoader', () => ({ default: () => null }));
@@ -39,34 +36,19 @@ vi.mock('@/core/errors/ErrorBoundary', () => ({
   ErrorBoundary: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
 vi.mock('@/routes/ProtectedRoute', () => ({
-  default: () => {
-    const { Outlet } = require('react-router-dom');
-    return <Outlet />;
-  },
+  default: () => <Outlet />,
 }));
 vi.mock('@/routes/RoleGuard', () => ({
-  default: () => {
-    const { Outlet } = require('react-router-dom');
-    return <Outlet />;
-  },
+  default: () => <Outlet />,
 }));
 vi.mock('@/routes/WhitelistGuard', () => ({
-  default: () => {
-    const { Outlet } = require('react-router-dom');
-    return <Outlet />;
-  },
+  default: () => <Outlet />,
 }));
 vi.mock('@/routes/FeatureGuard', () => ({
-  default: () => {
-    const { Outlet } = require('react-router-dom');
-    return <Outlet />;
-  },
+  default: () => <Outlet />,
 }));
 vi.mock('@/routes/DeepLinkGuard', () => ({
-  default: () => {
-    const { Outlet } = require('react-router-dom');
-    return <Outlet />;
-  },
+  default: () => <Outlet />,
 }));
 
 function renderRouter(path: string) {

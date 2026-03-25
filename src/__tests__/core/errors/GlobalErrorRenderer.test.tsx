@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, act } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { vi } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import GlobalErrorRenderer from '@/core/errors/GlobalErrorRenderer';
@@ -58,7 +58,7 @@ describe('GlobalErrorRenderer', () => {
   describe('no active errors', () => {
     it('renders nothing visible', () => {
       setup();
-      const { container } = renderRenderer();
+      renderRenderer();
       // No portals should have content
       expect(screen.queryByRole('alertdialog')).toBeNull();
       expect(screen.queryByRole('alert')).toBeNull();

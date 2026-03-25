@@ -106,7 +106,7 @@ describe('ErrorBoundary', () => {
           <Bomb shouldThrow />
         </ErrorBoundary>,
       );
-      expect(onError).toHaveBeenCalledOnce();
+      expect(onError).toHaveBeenCalledTimes(1);
       expect(onError).toHaveBeenCalledWith(expect.any(Error), expect.any(Object));
     });
   });

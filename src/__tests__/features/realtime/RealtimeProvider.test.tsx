@@ -31,7 +31,7 @@ describe('RealtimeProvider', () => {
         <div />
       </RealtimeProvider>,
     );
-    expect(socketManager.connect).toHaveBeenCalledOnce();
+    expect(socketManager.connect).toHaveBeenCalledTimes(1);
   });
 
   it('calls socketManager.disconnect on unmount', () => {
@@ -41,6 +41,6 @@ describe('RealtimeProvider', () => {
       </RealtimeProvider>,
     );
     unmount();
-    expect(socketManager.disconnect).toHaveBeenCalledOnce();
+    expect(socketManager.disconnect).toHaveBeenCalledTimes(1);
   });
 });
