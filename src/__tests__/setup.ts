@@ -19,6 +19,7 @@
  */
 
 import { beforeEach } from 'vitest';
+import '@testing-library/jest-dom';
 
 /**
  * Wipe browser storage before every test so Zustand persist middleware

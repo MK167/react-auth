@@ -16,7 +16,9 @@
       "Bash(echo \"exit: $?\")",
       "Bash(npx vitest:*)",
       "Bash(node -e \"const pkg = require\\(''./node_modules/eslint-plugin-react-hooks/package.json''\\); console.log\\(pkg.version\\)\")",
-      "Bash(npx eslint:*)"
+      "Bash(npx eslint:*)",
+      "Bash(npx storybook@latest init --yes)",
+      "Bash(npx storybook:*)"
     ]
   }
 }

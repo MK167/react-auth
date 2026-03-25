@@ -329,6 +329,65 @@ Demo page: `/admin/realtime-chat` (requires `realtimeChat` feature flag, enabled
 
 ---
 
+## Testing
+
+```bash
+# Run all unit tests once
+npm run test:run
+
+# Run in watch mode (re-runs on save)
+npm test
+
+# Generate coverage report
+npm run test:coverage
+```
+
+530 tests across 78 test files — components, pages, layouts, routes, guards, stores, and core systems.
+
+| Layer | What is tested |
+|---|---|
+| Components | Render output, prop variants, user interactions |
+| Pages | API mock integration, loading/error/empty states |
+| Layouts | Navigation, auth-aware rendering, badge counts |
+| Routes / Guards | ProtectedRoute, RoleGuard, WhitelistGuard, FeatureGuard, DeepLinkGuard |
+| Core | AppInitializer, ErrorBoundary, GlobalErrorRenderer |
+| Realtime | RealtimeProvider lifecycle, socket mock |
+
+**Test stack:** Vitest + React Testing Library + jsdom
+
+---
+
+## Storybook
+
+```bash
+# Start the Storybook dev server
+npm run storybook          # http://localhost:6006
+
+# Build a static Storybook site
+npm run build-storybook
+```
+
+12 story files cover every component in `src/components/`:
+
+| Story | Variants |
+|---|---|
+| `UI/Skeleton` | Default, ProductCardSkeleton, TableRowSkeleton |
+| `UI/InitSkeleton` | Default |
+| `Common/GlobalLoader` | Visible, Hidden |
+| `Admin/DeleteModal` | Open, Loading, Closed |
+| `Auth/Divider` | Default |
+| `Auth/ErrorNotification` | WithError, NoError, CustomLabel |
+| `Auth/Icons/GoogleIcon` | Default |
+| `Auth/Icons/FacebookIcon` | Default |
+| `Auth/Icons/MicrosoftIcon` | Default |
+| `Auth/Spinner` | Default |
+| `Form/InputElement` | TextInput, EmailInput, PasswordInput, WithError, TextareaInput, SelectInput, RadioInput |
+| `Auth/SocialLogin` | Default |
+
+**Storybook stack:** `@storybook/react-vite` · `@storybook/addon-docs` · `@storybook/addon-a11y` · `@chromatic-com/storybook`
+
+---
+
 Full developer reference → [DOCUMENTATION.md](./DOCUMENTATION.md)
 
 ---

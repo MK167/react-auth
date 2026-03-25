@@ -34,6 +34,8 @@
 26. [WebSocket Realtime Architecture](#26-websocket-realtime-architecture)
 27. [Performance Optimisation (Lighthouse)](#27-performance-optimisation-lighthouse)
 28. [Dynamic Page Titles & Meta Tags](#28-dynamic-page-titles--meta-tags)
+29. [Testing](#29-testing)
+30. [Storybook](#30-storybook)
 
 ---
 
@@ -91,6 +93,13 @@
 | `eslint` + `typescript-eslint` | Linting |
 | `json-server` ^0.17 | Mock REST API backend |
 | `concurrently` | Run Vite + json-server in parallel |
+| `vitest` ^4.1 | Unit test runner (Vite-native) |
+| `@testing-library/react` | Component rendering + querying in tests |
+| `@testing-library/jest-dom` | Custom DOM matchers (`toBeInTheDocument`, etc.) |
+| `storybook` ^10.3 | Component development and documentation |
+| `@storybook/react-vite` | Storybook Vite integration |
+| `@storybook/addon-vitest` | Run stories as component tests |
+| `@storybook/addon-a11y` | Accessibility audits inside Storybook |
 
 ---
 
@@ -143,6 +152,11 @@ VITE_FIREBASE_APP_ID=
 | `npm run build` | TypeScript compile → Vite production build |
 | `npm run preview` | Serve the production build locally |
 | `npm run lint` | ESLint code quality check |
+| `npm test` | Vitest in watch mode |
+| `npm run test:run` | Vitest single pass (CI) |
+| `npm run test:coverage` | Vitest with V8 coverage report |
+| `npm run storybook` | Storybook dev server on `http://localhost:6006` |
+| `npm run build-storybook` | Static Storybook build (for deployment) |
 
 ### Development workflow
 
@@ -1960,6 +1974,192 @@ While the product is loading the tab reads `"Product - ShopHub"`. Once the API r
 ### No react-helmet dependency
 
 `usePageMeta` directly mutates `document.title` and a single `<meta name="description">` DOM node. For a client-rendered SPA with no SSR, this is equivalent to react-helmet with zero additional bundle size.
+
+---
+
+## 29. Testing
+
+### Stack
+
+| Tool | Role |
+|---|---|
+| **Vitest** ^4.1 | Vite-native test runner — fast HMR-aware transforms, no Babel needed |
+| **React Testing Library** | DOM queries and user interaction simulation |
+| **`@testing-library/jest-dom`** | Extended matchers (`toBeInTheDocument`, `toHaveValue`, etc.) |
+| **jsdom** | Browser environment simulation |
+
+### Running tests
+
+```bash
+npm test               # Watch mode — re-runs on every save
+npm run test:run       # Single pass (for CI)
+npm run test:coverage  # V8 coverage report (lcov + text)
+```
+
+### Test counts
+
+```
+Test Files  77 passed | 1 skipped (78)
+Tests       530 passed
+```
+
+### Directory structure
+
+```
+src/__tests__/
+├── components/
+│   ├── admin/              # DeleteModal
+│   ├── auth/               # Divider, SocialLogin, icons, spinner, ErrorNotification
+│   ├── common/             # GlobalLoader
+│   ├── form/               # FormInputControl
+│   └── ui/                 # Skeleton, InitSkeleton
+├── core/
+│   ├── errors/             # ErrorBoundary, GlobalErrorRenderer
+│   └── init/               # AppInitializer
+├── features/
+│   └── realtime/           # RealtimeProvider
+├── layouts/                # AuthLayout, UserLayout, AdminLayout
+├── pages/
+│   ├── admin/              # Dashboard, Products, Categories, Orders, Realtime, ErrorPlayground
+│   └── user/               # Home, Products, ProductDetail, Cart, Wishlist, Orders, Checkout, Profile
+├── routes/                 # AppRouter, ProtectedRoute, RoleGuard, WhitelistGuard, FeatureGuard, DeepLinkGuard
+└── themes/                 # ThemeContext
+```
+
+### Key testing patterns
+
+#### Mocking Zustand stores with selectors
+
+Stores that use selector callbacks (e.g. `useStore((s) => s.field)`) must be mocked with `mockImplementation`, not `mockReturnValue`:
+
+```ts
+vi.mock('@/store/auth.store', () => ({
+  useAuthStore: vi.fn(),
+}));
+
+const mockState = { user: { _id: 'u1', username: 'admin' }, featureFlags: {} };
+mockUseAuthStore.mockImplementation((selector) => selector(mockState));
+```
+
+#### Lazy-loaded routes
+
+Routes wrapped in `React.lazy()` + `<Suspense>` require async queries:
+
+```ts
+// ✗ throws synchronously before the lazy module resolves
+expect(screen.getByText('Products Page')).toBeInTheDocument();
+
+// ✓ waits for Suspense to resolve
+expect(await screen.findByText('Products Page')).toBeInTheDocument();
+```
+
+#### `getCategories` import location
+
+Seven pages (Dashboard, ProductsList, CreateProduct, EditProduct, Categories, ProductsPage) import `getCategories` from `@/api/products.api`, not `@/api/categories.api`. Mock accordingly:
+
+```ts
+vi.mock('@/api/products.api', () => ({
+  getProducts: vi.fn(),
+  getCategories: vi.fn().mockResolvedValue({ data: { data: [] } }),
+}));
+```
+
+#### ErrorBoundary reset test
+
+The "Try again" button re-renders children. To test a successful reset, change the child to a non-throwing state **before** clicking the button:
+
+```ts
+const { rerender } = render(<ErrorBoundary><Bomb shouldThrow /></ErrorBoundary>);
+rerender(<ErrorBoundary><Bomb shouldThrow={false} /></ErrorBoundary>);
+fireEvent.click(screen.getByRole('button', { name: /try again/i }));
+expect(screen.getByText('Safe Content')).toBeInTheDocument();
+```
+
+---
+
+## 30. Storybook
+
+### Stack
+
+| Package | Role |
+|---|---|
+| `@storybook/react-vite` | Vite-powered Storybook framework |
+| `@storybook/addon-docs` | Auto-generated API docs from props + JSDoc |
+| `@storybook/addon-a11y` | Accessibility panel with WCAG audits |
+| `@storybook/addon-vitest` | Runs stories as browser component tests via Playwright |
+| `@chromatic-com/storybook` | Chromatic visual regression integration |
+
+### Running Storybook
+
+```bash
+npm run storybook          # Dev server → http://localhost:6006
+npm run build-storybook    # Static build → storybook-static/
+```
+
+### Configuration
+
+| File | Purpose |
+|---|---|
+| `.storybook/main.ts` | Framework, addons, story glob (`src/**/*.stories.@(js|jsx|ts|tsx)`) |
+| `.storybook/preview.ts` | Global parameters: Tailwind CSS import, background presets, a11y config |
+
+### Story files
+
+| Story | Path | Variants |
+|---|---|---|
+| `UI/Skeleton` | `src/components/ui/Skeleton.stories.tsx` | Default, ProductCardSkeleton, TableRowSkeleton |
+| `UI/InitSkeleton` | `src/components/ui/InitSkeleton.stories.tsx` | Default |
+| `Common/GlobalLoader` | `src/components/common/GlobalLoader.stories.tsx` | Visible, Hidden |
+| `Admin/DeleteModal` | `src/components/admin/DeleteModal.stories.tsx` | Open, Loading, Closed |
+| `Auth/Divider` | `src/components/auth/Divider.stories.tsx` | Default |
+| `Auth/ErrorNotification` | `src/components/auth/common/error-notification/ErrorNotification.stories.tsx` | WithError, NoError, CustomLabel |
+| `Auth/Icons/GoogleIcon` | `src/components/auth/common/icons/GoogleIcon.stories.tsx` | Default |
+| `Auth/Icons/FacebookIcon` | `src/components/auth/common/icons/FacebookIcon.stories.tsx` | Default |
+| `Auth/Icons/MicrosoftIcon` | `src/components/auth/common/icons/Microsoft.stories.tsx` | Default |
+| `Auth/Spinner` | `src/components/auth/common/spinner/Spinner.stories.tsx` | Default |
+| `Form/InputElement` | `src/components/form/input/FormInputControl.stories.tsx` | TextInput, EmailInput, PasswordInput, WithError, TextareaInput, SelectInput, RadioInput |
+| `Auth/SocialLogin` | `src/components/auth/social-media-auth/SocialLogin.stories.tsx` | Default |
+
+### Skipping stories from vitest
+
+Stories that depend on browser globals (Firebase OAuth) not available in jsdom can be excluded from the vitest test run by adding the `'!test'` tag:
+
+```ts
+const meta = {
+  title: 'Auth/SocialLogin',
+  component: SocialLogin,
+  tags: ['autodocs', '!test'],  // excluded from @storybook/addon-vitest
+} satisfies Meta<typeof SocialLogin>;
+```
+
+### Background presets
+
+The Storybook preview is pre-configured with light (`#ffffff`) and dark (`#111827`) background presets matching the app's Tailwind dark mode colours. Toggle via the toolbar to verify dark-mode styles.
+
+### Writing a new story (CSF3 pattern)
+
+```tsx
+import type { Meta, StoryObj } from '@storybook/react';
+import MyComponent from './MyComponent';
+
+const meta = {
+  title: 'Category/MyComponent',
+  component: MyComponent,
+  tags: ['autodocs'],
+  args: {
+    // shared default props
+  },
+} satisfies Meta<typeof MyComponent>;
+
+export default meta;
+type Story = StoryObj<typeof meta>;
+
+export const Default: Story = {
+  args: {
+    label: 'Hello',
+  },
+};
+```
 
 ---
 
