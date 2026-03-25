@@ -67,6 +67,9 @@ function ProductCard({ product, index, onAddToCart, onNavigate }: ProductCardPro
             alt={product.name}
             loading={index === 0 ? 'eager' : 'lazy'}
             fetchPriority={index === 0 ? 'high' : undefined}
+            decoding="async"
+            width={index === 0 ? 400 : undefined}
+            height={index === 0 ? 208 : undefined}
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
           />
         ) : (

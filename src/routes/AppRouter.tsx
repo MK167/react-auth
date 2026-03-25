@@ -54,6 +54,9 @@ import AdminLayout from '@/layouts/AdminLayout';
 import UserLayout from '@/layouts/UserLayout';
 import GlobalLoader from '@/components/common/GlobalLoader';
 import { ErrorBoundary } from '@/core/errors/ErrorBoundary';
+// HomePage is the LCP page — imported statically so the browser needs no
+// extra chunk download before rendering the featured-products grid.
+import HomePage from '@/pages/user/HomePage';
 
 // ---------------------------------------------------------------------------
 // Lazy-loaded pages
@@ -78,8 +81,7 @@ const AdminOrdersPage     = lazy(() => import('@/pages/admin/AdminOrdersPage'));
 const ErrorPlaygroundPage = lazy(() => import('@/pages/admin/ErrorPlaygroundPage'));
 const RealtimeChatPage    = lazy(() => import('@/pages/admin/RealtimeChatPage'));
 
-// User pages
-const HomePage         = lazy(() => import('@/pages/user/HomePage'));
+// User pages (HomePage excluded — statically imported above)
 const ProductsPage     = lazy(() => import('@/pages/user/ProductsPage'));
 const ProductDetailPage = lazy(() => import('@/pages/user/ProductDetailPage'));
 const CartPage         = lazy(() => import('@/pages/user/CartPage'));
@@ -126,7 +128,7 @@ export default function AppRouter() {
       {/* ------------------------------------------------------------------ */}
       <Route element={<ErrorBoundary resetKey={location.pathname}><UserLayout /></ErrorBoundary>}>
         {/* Public storefront — no authentication required */}
-        <Route path="/"                element={<Page component={HomePage} />} />
+        <Route path="/"                element={<HomePage />} />
         <Route path="/products"        element={<Page component={ProductsPage} />} />
         <Route path="/products/:slugId" element={<Page component={ProductDetailPage} />} />
         <Route path="/cart"             element={<Page component={CartPage} />} />
