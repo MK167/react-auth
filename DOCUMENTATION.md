@@ -637,6 +637,18 @@ Both `AdminLayout` and `UserLayout` are wrapped in an `ErrorBoundary` at the rou
 
 The access token is persisted in a browser cookie by `cookieService.setToken()`. The Axios request interceptor reads the token directly from the cookie on every request. Persisting `user` to `localStorage` ensures the store is initialized synchronously before any component renders — no auth flicker on hard refresh.
 
+### Cookie options (`src/utils/cookie.service.ts`)
+
+Both `accessToken` and `refreshToken` cookies share the same options:
+
+| Option | Value | Reason |
+|---|---|---|
+| `expires` | `7` days | Keeps the session alive across browser restarts |
+| `secure` | `import.meta.env.PROD` | `true` in production (HTTPS only); `false` in development. Safari strictly refuses to write `Secure` cookies over plain HTTP — Chrome grants localhost an exemption, which is why login broke in Safari only. |
+| `sameSite` | `"lax"` | Allows cookies through top-level OAuth / Firebase redirects while still blocking cross-site `POST` requests. `"strict"` would block the cookie after the Firebase popup navigates back to the app. |
+
+> **Safari note:** Using `secure: true` on `http://localhost` causes Safari to silently drop every cookie write. The auth store then finds no token and clears the session immediately after login — explaining why all login methods fail in Safari while Chrome works fine.
+
 ### Default feature flags (development)
 
 In development builds (`import.meta.env.DEV`), `errorPlayground` is enabled so developers can access `/admin/error-playground` without a backend feature-flag API. All other flags default to `false`.
