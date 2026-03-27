@@ -392,6 +392,19 @@ Full developer reference → [DOCUMENTATION.md](./DOCUMENTATION.md)
 
 ---
 
+## Browser Compatibility
+
+Tested and working in Chrome, Firefox, and Safari.
+
+**Safari note — auth cookies in development:**
+The dev server runs on plain HTTP (`http://localhost`). Safari strictly refuses to set cookies with the `Secure` flag over non-HTTPS origins; Chrome grants localhost an exemption. Auth tokens are stored in cookies, so this caused all login methods to silently fail in Safari while Chrome worked fine.
+
+The cookie service uses `secure: import.meta.env.PROD` so the `Secure` flag is only applied in production (HTTPS). `SameSite` is set to `"lax"` (not `"strict"`) to allow cookies through Firebase OAuth popup redirects.
+
+No action required — this is handled automatically by the build configuration.
+
+---
+
 ## License
 
 MIT
