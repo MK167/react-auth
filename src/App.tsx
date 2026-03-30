@@ -15,6 +15,10 @@
  * 3. **`ErrorBoundary`** — top-level safety net. Catches render-time JS
  *    errors that escape layout-level boundaries (e.g. errors in providers
  *    themselves). Shows a minimal crash fallback UI.
+ *    example: When the app starts, it initializes global providers like authentication, theming, or data fetching.
+ *    If one of these fails during rendering (for example, corrupted user data causes the auth provider to crash, or a misconfigured theme throws an error), the entire app would normally break and show a blank screen.
+ *    Instead, the top-level ErrorBoundary catches this failure and displays a simple fallback message like:
+ *    Something went wrong. Please refresh the page.
  *
  * 4. **`GlobalLoader`** — fullscreen spinner overlay driven by the Zustand
  *    `useUiStore.activeApiRequestsCount` semaphore. Mounted above the router
@@ -26,7 +30,7 @@
  *    - PAGE → fullscreen overlay (z-[9990])
  *    - MODAL → dialog overlay (z-[9995])
  *    - TOAST → bottom-right notification stack (z-[9999])
- *    INLINE errors are consumed by individual components directly.
+ *    - INLINE errors are consumed by individual components directly.
  *
  * 6. **`AppRouter`** — renders the full React Router `<Routes>` tree with
  *    lazy-loaded pages, authentication gates, role guards, feature guards,
@@ -59,6 +63,17 @@ import AppRouter from '@/routes/AppRouter';
  * 7. AppRouter       — route tree (only mounts when AppInitializer is ready)
  */
 function App() {
+  /**
+   * Provider hierarchy (outer → inner):
+   *
+   * 1. {@link I18nProvider} — language + RTL applied to `<html>` before first paint.
+   * 2. {@link ThemeProvider} — dark/light class applied to `<html>` before first paint.
+   * 3. {@link AppInitializer} — blocks the subtree until async init (locale bundles, error config) completes.
+   * 4. {@link ErrorBoundary} — catches render-time JS errors in the router and global UI; shows a crash fallback.
+   * 5. {@link GlobalLoader} — fullscreen spinner overlay (`z-[9999]`) driven by the Axios request semaphore.
+   * 6. {@link GlobalErrorRenderer} — renders PAGE / MODAL / TOAST error overlays from `useErrorStore`.
+   * 7. {@link AppRouter} — lazy-loaded route tree; only mounts after `AppInitializer` signals readiness.
+   */
   return (
     <I18nProvider>
       <ThemeProvider>
