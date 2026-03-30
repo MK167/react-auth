@@ -36,9 +36,9 @@
  *
  * STEP 1 — Wrap UserLayout routes with an optional lang prefix in AppRouter:
  * ```tsx
- * // In AppRouter.tsx, change:
+ *  In AppRouter.tsx, change:
  * <Route element={<UserLayout />}>
- * // To:
+ *  To:
  * <Route path="/:lang?" element={<UserLayout />}>
  * ```
  *
@@ -54,7 +54,7 @@
  * STEP 3 — Update all `navigate()` and `<NavLink to>` calls to include the lang:
  * ```tsx
  * navigate(`/${lang}/products`);
- * // or create a <LangLink> wrapper:
+ *  or create a <LangLink> wrapper:
  * function LangLink({ to, ...props }: LinkProps) {
  *   const { lang } = useI18n();
  *   return <NavLink to={`/${lang}${to}`} {...props} />;
@@ -63,7 +63,7 @@
  *
  * STEP 4 — Add a default redirect:
  * ```tsx
- * // In AppRouter, add a top-level redirect:
+ *  In AppRouter, add a top-level redirect:
  * <Route path="/" element={<Navigate to={`/${defaultLang}`} replace />} />
  * ```
  *
