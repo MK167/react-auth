@@ -19,6 +19,8 @@
       Apply dark class before first paint to prevent FOUC for dark-mode users.
       This mirrors the logic in ThemeProvider (localStorage key: 'app-theme').
       Must run synchronously — do NOT defer or async this script.
+      Flash of Unstyled Content (FOUC) is especially jarring in dark mode, 
+      so we apply the theme class as early as possible.  This is a common technique for theme management in React apps, and ensures that the correct theme is applied immediately on page load, even before React hydrates and takes over the DOM.
     -->
     <script>
       try {
