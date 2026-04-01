@@ -13,8 +13,7 @@
  *    mount, preventing FOUC for returning dark-mode users.
  *
  * 3. **`ErrorBoundary`** — top-level safety net. Catches render-time JS
- *    errors that escape layout-level boundaries (e.g. errors in providers
- *    themselves). Shows a minimal crash fallback UI.
+ *    errors that escape layout-level boundaries (e.g. errors in providers themselves). Shows a minimal crash fallback UI.
  *    example: When the app starts, it initializes global providers like authentication, theming, or data fetching.
  *    If one of these fails during rendering (for example, corrupted user data causes the auth provider to crash, or a misconfigured theme throws an error), the entire app would normally break and show a blank screen.
  *    Instead, the top-level ErrorBoundary catches this failure and displays a simple fallback message like:
