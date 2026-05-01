@@ -47,6 +47,11 @@
 import type { UserType } from '@/types/auth.types';
 import { cookieService } from '@/utils/cookie.service';
 import { create } from 'zustand';
+import { useCartStore } from '@/store/cart.store';
+import { useWishlistStore } from '@/store/wishlist.store';
+
+// Safe to import cart.store and wishlist.store here — neither of those modules
+// imports auth.store, so there is no circular dependency.
 
 // ---------------------------------------------------------------------------
 // Storage keys
@@ -89,7 +94,14 @@ function loadStoredFeatureFlags(): Record<string, boolean> {
   try {
     const raw = localStorage.getItem(FEATURE_FLAGS_STORAGE_KEY);
     if (!raw) return defaultFeatureFlags();
-    return JSON.parse(raw) as Record<string, boolean>;
+    const stored = JSON.parse(raw) as Record<string, boolean>;
+    // In dev, merge with defaults so newly added flags are available immediately
+    // without requiring a log-out/log-in cycle.
+    // Stored values take precedence over defaults (server-set flags are preserved).
+    if (import.meta.env.DEV) {
+      return { ...defaultFeatureFlags(), ...stored };
+    }
+    return stored;
   } catch {
     return defaultFeatureFlags();
   }
@@ -121,6 +133,7 @@ function defaultFeatureFlags(): Record<string, boolean> {
   if (import.meta.env.DEV) {
     return {
       errorPlayground: true,
+      realtimeChat:    true,
       betaReports:     false,
       analyticsV2:     false,
       newCheckout:     false,
@@ -177,6 +190,60 @@ type AuthState = {
 };
 
 // ---------------------------------------------------------------------------
+// Stale-session detection — runs once synchronously before any component renders
+// ---------------------------------------------------------------------------
+
+/**
+ * Remove stale localStorage keys left by previous versions of the app.
+ * Safe to call on every startup — missing keys are silently ignored.
+ */
+function cleanupLegacyStorage(): void {
+  const LEGACY_KEYS = [
+    'persist:cart',       // Zustand v3/v4 cart key (now 'cart-storage')
+    'persist:wishlist',   // Zustand v3/v4 wishlist key (now 'wishlist-storage')
+    'i18nextLng',         // Leftover from a previous i18next integration
+    'loglevel',           // Leftover from loglevel library
+  ];
+  try {
+    LEGACY_KEYS.forEach((key) => localStorage.removeItem(key));
+  } catch {
+    // localStorage unavailable — non-fatal
+  }
+}
+
+/**
+ * Detect and clear stale auth state.
+ *
+ * If `auth-user` is in localStorage but the access token cookie is gone
+ * (e.g. the user manually deleted it, or it expired and the browser cleared
+ * it), the store would incorrectly think the user is authenticated. Any
+ * subsequent API call would get a 401, the silent-refresh would fail, and
+ * `window.location.href = '/login'` would fire mid-render — crashing React.
+ *
+ * Fix: detect this state synchronously at module load time (before any
+ * component renders) and clear the stale localStorage entries immediately.
+ */
+function resolveInitialAuthState(): { user: UserType | null; featureFlags: Record<string, boolean> } {
+  cleanupLegacyStorage();
+
+  const user = loadStoredUser();
+  if (!user) return { user: null, featureFlags: defaultFeatureFlags() };
+
+  const hasToken = !!cookieService.getToken();
+  if (!hasToken) {
+    // Cookie is gone but localStorage still has user data → stale session.
+    // Clear everything so the app starts in a clean logged-out state.
+    clearPersistedUser();
+    clearPersistedFeatureFlags();
+    return { user: null, featureFlags: defaultFeatureFlags() };
+  }
+
+  return { user, featureFlags: loadStoredFeatureFlags() };
+}
+
+const initialAuthState = resolveInitialAuthState();
+
+// ---------------------------------------------------------------------------
 // Store
 // ---------------------------------------------------------------------------
 
@@ -186,10 +253,10 @@ type AuthState = {
  * `useAuthStore.getState()`.
  */
 export const useAuthStore = create<AuthState>((set) => ({
-  // Initialise synchronously from localStorage — no flicker on refresh.
-  user:         loadStoredUser(),
+  // Initialise synchronously — stale sessions are cleared before first render.
+  user:         initialAuthState.user,
   accessToken:  null,
-  featureFlags: loadStoredFeatureFlags(),
+  featureFlags: initialAuthState.featureFlags,
 
   setAuth: (user, accessToken) => {
     cookieService.setToken(accessToken);
@@ -209,8 +276,14 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   logout: () => {
     cookieService.removeToken();
+    cookieService.removeRefreshToken();
     clearPersistedUser();
     clearPersistedFeatureFlags();
+    // Clear frontend-only cart and wishlist state. Server-side data is
+    // intentionally preserved so the user's cart/wishlist survives logout
+    // and is reloaded from the server on the next login.
+    try { useCartStore.getState().clearCart(); } catch { /* non-fatal */ }
+    try { useWishlistStore.getState().clearItems(); } catch { /* non-fatal */ }
     set({ user: null, accessToken: null, featureFlags: defaultFeatureFlags() });
   },
 }));

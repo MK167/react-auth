@@ -7,7 +7,9 @@ import { useAuthStore } from "@/store/auth.store";
 import { useCartMerge } from "@/hooks/useCartMerge";
 import { useWishlistSync } from "@/hooks/useWishlistSync";
 import { prefetchAdminDashboard } from "@/utils/prefetch";
-import { useI18n } from "@/i18n/i18n.context";
+import { cookieService } from "@/utils/cookie.service";
+import { useI18n } from "@/i18n/use-i18n.hook";
+import { usePageMeta } from "@/hooks/usePageMeta";
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Mail, Lock } from "lucide-react";
@@ -61,13 +63,14 @@ function resolveRedirectTarget(
 // ---------------------------------------------------------------------------
 
 export default function Login() {
+  usePageMeta('Sign In', 'Sign in to your ShopHub account to access your orders, wishlist, and more.');
   const { setAuth } = useAuthStore();
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();
   const { mergeGuestCartWithServer } = useCartMerge();
   const { syncWishlistAfterLogin } = useWishlistSync();
-  const { t } = useI18n();
+  const { translate } = useI18n();
 
   const [serverError, setServerError] = useState<string | null>(null);
 
@@ -93,6 +96,7 @@ export default function Login() {
       const response = await loginApi(data);
       const user = response.data.user;
       setAuth(user, response.data.accessToken);
+      cookieService.setRefreshToken(response.data.refreshToken);
 
       void mergeGuestCartWithServer();
       void syncWishlistAfterLogin();
@@ -135,10 +139,10 @@ export default function Login() {
       onSubmit={handleSubmit(onSubmit)}
     >
       {/* SERVER ERROR */}
-      <ErrorNotification serverError={serverError} text={t('auth.login.backendError')} />
+      <ErrorNotification serverError={serverError} text={translate('auth.login.backendError')} />
 
       <h1 className="text-xl font-semibold text-center mb-6 text-gray-900 dark:text-white">
-        {t('auth.login.title')}
+        {translate('auth.login.title')}
       </h1>
 
       {/* SOCIAL */}
@@ -150,7 +154,7 @@ export default function Login() {
       {/* EMAIL */}
       <div className="mb-4">
         <label className="text-sm font-medium block mb-1 text-gray-700 dark:text-gray-300">
-          {t('auth.login.email')}
+          {translate('auth.login.email')}
         </label>
         <div className="relative">
           <Mail
@@ -178,7 +182,7 @@ export default function Login() {
       {/* PASSWORD */}
       <div className="mb-2">
         <label className="text-sm font-medium block mb-1 text-gray-700 dark:text-gray-300">
-          {t('auth.login.password')}
+          {translate('auth.login.password')}
         </label>
         <div className="relative">
           <Lock
@@ -207,7 +211,7 @@ export default function Login() {
       {/* FORGOT */}
       <div className="text-end mb-5">
         <a className="text-xs text-gray-500 hover:text-black dark:hover:text-white cursor-pointer">
-          {t('auth.login.forgotPassword')}
+          {translate('auth.login.forgotPassword')}
         </a>
       </div>
 
@@ -223,17 +227,17 @@ export default function Login() {
         {isSubmitting && (
           <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
         )}
-        {isSubmitting ? t('auth.login.signingIn') : t('auth.login.continue')}
+        {isSubmitting ? translate('auth.login.signingIn') : translate('auth.login.continue')}
       </button>
 
       {/* REGISTER */}
       <p className="text-center text-xs text-gray-500 mt-6">
-        {t('auth.login.noAccount')}{" "}
+        {translate('auth.login.noAccount')}{" "}
         <Link
           to="/register"
           className="text-black dark:text-indigo-400 font-medium hover:underline"
         >
-          {t('auth.login.signUp')}
+          {translate('auth.login.signUp')}
         </Link>
       </p>
     </form>

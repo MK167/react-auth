@@ -21,13 +21,16 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Play, RotateCcw, Layers, Zap, ShieldX, AlertTriangle,
-  Info, Check, ChevronDown,
+  Info, Check, ChevronDown, Timer, Activity, Bug,
 } from 'lucide-react';
 import { useErrorStore } from '@/core/errors/error.store';
 import { ERROR_CONFIG_MAP } from '@/core/errors/error.config';
 import type { ErrorCode, ErrorDisplayMode } from '@/core/errors/error.types';
 import { useAuthStore } from '@/store/auth.store';
-import { useI18n } from '@/i18n/i18n.context';
+import { useI18n } from '@/i18n/use-i18n.hook';
+import { usePageMeta } from '@/hooks/usePageMeta';
+import { useUiStore } from '@/store/ui.store';
+import { ErrorBoundary } from '@/core/errors/ErrorBoundary';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -84,7 +87,7 @@ function Badge({ children, color = 'gray' }: { children: React.ReactNode; color?
 // ---------------------------------------------------------------------------
 
 function InlineErrorPreview({ code }: { code: ErrorCode }) {
-  const { t } = useI18n();
+  const { translate } = useI18n();
   const config = ERROR_CONFIG_MAP[code];
   if (!config) return null;
   return (
@@ -93,9 +96,40 @@ function InlineErrorPreview({ code }: { code: ErrorCode }) {
         <AlertTriangle size={16} />
       </span>
       <div>
-        <p className={`text-sm font-medium ${config.iconColorClass}`}>{t(config.titleKey)}</p>
-        <p className="text-xs text-gray-600 dark:text-gray-400 mt-0.5">{t(config.descriptionKey)}</p>
+        <p className={`text-sm font-medium ${config.iconColorClass}`}>{translate(config.titleKey)}</p>
+        <p className="text-xs text-gray-600 dark:text-gray-400 mt-0.5">{translate(config.descriptionKey)}</p>
       </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// CrashableWidget — throws during render when the button is clicked
+// ---------------------------------------------------------------------------
+
+function CrashableWidget() {
+  const [shouldCrash, setShouldCrash] = useState(false);
+  if (shouldCrash) throw new Error('Widget deliberately crashed for ErrorBoundary demo!');
+  return (
+    <div className="p-4 rounded-xl border border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/20">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2 text-green-700 dark:text-green-400">
+          <Check size={16} />
+          <span className="text-sm font-medium">Widget is healthy</span>
+        </div>
+        <button
+          type="button"
+          onClick={() => setShouldCrash(true)}
+          className="flex items-center gap-1.5 px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-medium rounded-lg transition-colors flex-shrink-0"
+        >
+          <Bug size={12} />
+          Crash this widget
+        </button>
+      </div>
+      <p className="text-xs text-green-600 dark:text-green-500 mt-2">
+        Clicking the button sets local state that causes this component to throw during
+        React's render phase — exactly what ErrorBoundary is designed to catch.
+      </p>
     </div>
   );
 }
@@ -105,8 +139,9 @@ function InlineErrorPreview({ code }: { code: ErrorCode }) {
 // ---------------------------------------------------------------------------
 
 export default function ErrorPlaygroundPage() {
+  usePageMeta('Error Playground', 'Test and preview error states in ShopHub admin.');
   const navigate = useNavigate();
-  const { t } = useI18n();
+  const { translate } = useI18n();
   const { pushError, clearAll } = useErrorStore();
   const { featureFlags, setFeatureFlags } = useAuthStore();
 
@@ -116,6 +151,15 @@ export default function ErrorPlaygroundPage() {
   const [withRetry, setWithRetry] = useState(false);
   const [showInlinePreview, setShowInlinePreview] = useState(false);
   const [lastTriggered, setLastTriggered] = useState<string | null>(null);
+
+  // GlobalLoader demo
+  const [loaderStatus, setLoaderStatus] = useState<string | null>(null);
+  const startLoading = useUiStore((s) => s.startLoading);
+  const stopLoading = useUiStore((s) => s.stopLoading);
+  const activeApiRequestsCount = useUiStore((s) => s.activeApiRequestsCount);
+
+  // ErrorBoundary demo
+  const [recoveryKey, setRecoveryKey] = useState(0);
 
   const selectedConfig = ERROR_CONFIG_MAP[selectedCode];
   const effectiveMode = selectedMode === 'default' ? selectedConfig.displayMode : selectedMode;
@@ -241,10 +285,10 @@ export default function ErrorPlaygroundPage() {
               <Badge color="gray">key: {selectedConfig.titleKey}</Badge>
             </div>
             <div className="mt-2 text-xs text-gray-600 dark:text-gray-300">
-              <span className="font-medium">Title:</span> {t(selectedConfig.titleKey)}
+              <span className="font-medium">Title:</span> {translate(selectedConfig.titleKey)}
             </div>
             <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-              <span className="font-medium">Description:</span> {t(selectedConfig.descriptionKey)}
+              <span className="font-medium">Description:</span> {translate(selectedConfig.descriptionKey)}
             </div>
           </div>
         )}
@@ -307,64 +351,247 @@ export default function ErrorPlaygroundPage() {
         />
 
         <div className="grid sm:grid-cols-2 gap-3">
+          {/* ── PAGE scenarios ─────────────────────────── */}
           <ScenarioCard
             title="Unauthorized (FORBIDDEN)"
-            description="Simulates accessing a page without permission. PAGE overlay."
+            description="Simulates accessing a page without permission — full-screen overlay blocks navigation."
             color="red"
+            displayMode="PAGE"
             onClick={handleSimulateUnauthorized}
           />
           <ScenarioCard
-            title="Session Expired"
-            description="Simulates a token expiry requiring re-login. MODAL dialog."
-            color="amber"
-            onClick={handleSimulateSessionExpired}
-          />
-          <ScenarioCard
-            title="Deep Link Validation"
-            description="Navigate to /orders/nonexistent-id to trigger resource not-found."
-            color="indigo"
-            onClick={handleSimulateDeepLink}
-          />
-          <ScenarioCard
             title="Network Error"
-            description="Push a NETWORK_ERROR as a PAGE overlay."
+            description="NETWORK_ERROR full-screen overlay with a retry callback that clears the error."
             color="gray"
+            displayMode="PAGE"
             onClick={() => pushError('NETWORK_ERROR', {
               onRetry: () => { clearAll(); },
             })}
           />
           <ScenarioCard
-            title="Server Error Toast"
-            description="SERVER_ERROR shown as a TOAST (non-critical display override)."
+            title="Feature Disabled"
+            description="FEATURE_DISABLED full-screen overlay — use to test FeatureGuard fallback UI."
             color="gray"
+            displayMode="PAGE"
+            onClick={() => pushError('FEATURE_DISABLED')}
+          />
+          {/* ── MODAL scenarios ────────────────────────── */}
+          <ScenarioCard
+            title="Session Expired"
+            description="Token expiry — requires the user to sign in again. Dismissible by clicking the backdrop or Esc."
+            color="amber"
+            displayMode="MODAL"
+            onClick={handleSimulateSessionExpired}
+          />
+          <ScenarioCard
+            title="Order Not Found (Modal)"
+            description="ORDER_NOT_FOUND displayed as a modal dialog instead of its default PAGE mode."
+            color="purple"
+            displayMode="MODAL"
+            onClick={() => pushError('ORDER_NOT_FOUND', { displayModeOverride: 'MODAL' })}
+          />
+          <ScenarioCard
+            title="Unknown Error (Modal)"
+            description="Generic UNKNOWN_ERROR as a dismissible modal. Good for testing modal layout and actions."
+            color="purple"
+            displayMode="MODAL"
+            onClick={() => pushError('UNKNOWN_ERROR', { displayModeOverride: 'MODAL' })}
+          />
+          {/* ── TOAST scenarios ────────────────────────── */}
+          <ScenarioCard
+            title="Server Error Toast"
+            description="SERVER_ERROR shown as a TOAST — non-blocking override for background operations."
+            color="gray"
+            displayMode="TOAST"
             onClick={() => pushError('SERVER_ERROR', { displayModeOverride: 'TOAST' })}
           />
           <ScenarioCard
             title="Validation Toast"
-            description="VALIDATION_ERROR as default TOAST notification."
+            description="VALIDATION_ERROR as its default TOAST notification — auto-dismisses after 4 s."
             color="amber"
+            displayMode="TOAST"
             onClick={() => pushError('VALIDATION_ERROR')}
           />
           <ScenarioCard
             title="Multiple Toasts"
-            description="Push 3 different toasts simultaneously."
+            description="Push 3 different toasts in quick succession to test the toast queue and stacking."
             color="indigo"
+            displayMode="TOAST"
             onClick={() => {
               pushError('VALIDATION_ERROR');
               setTimeout(() => pushError('UNKNOWN_ERROR', { displayModeOverride: 'TOAST' }), 200);
               setTimeout(() => pushError('NETWORK_ERROR', { displayModeOverride: 'TOAST' }), 400);
             }}
           />
+          {/* ── OTHER scenarios ────────────────────────── */}
           <ScenarioCard
-            title="Feature Disabled"
-            description="FEATURE_DISABLED as PAGE overlay."
-            color="gray"
-            onClick={() => pushError('FEATURE_DISABLED')}
+            title="Deep Link Validation"
+            description="Navigate to /orders/nonexistent-id to trigger the DeepLinkGuard resource not-found flow."
+            color="indigo"
+            displayMode="PAGE"
+            onClick={handleSimulateDeepLink}
           />
         </div>
       </div>
 
-      {/* ── SECTION 3: Feature flag toggles ──────────────────────────────── */}
+      {/* ── SECTION 3: GlobalLoader demo ─────────────────────────────────── */}
+      <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-6">
+        <SectionHeader
+          icon={<Timer size={16} />}
+          title="GlobalLoader Demo"
+          subtitle="Directly drive the Zustand loading counter — the same semaphore Axios uses."
+        />
+
+        {/* Live counter */}
+        <div className="mb-4 flex items-center gap-2 p-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl">
+          <Activity size={14} className="text-indigo-500 flex-shrink-0" />
+          <span className="text-xs text-gray-500 dark:text-gray-400">activeApiRequestsCount:</span>
+          <Badge color={activeApiRequestsCount > 0 ? 'indigo' : 'gray'}>{activeApiRequestsCount}</Badge>
+          {activeApiRequestsCount > 0 && (
+            <span className="text-xs text-indigo-600 dark:text-indigo-400 font-medium animate-pulse">
+              — overlay is visible
+            </span>
+          )}
+        </div>
+
+        <div className="grid sm:grid-cols-3 gap-3">
+          {/* Single request */}
+          <div className="p-4 rounded-xl border border-gray-200 dark:border-gray-700">
+            <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-1">Single Request</h3>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mb-3 leading-relaxed">
+              Simulates one API call. Loader appears for 2 s then disappears.
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                startLoading();
+                setLoaderStatus('Single request in-flight (2 s)…');
+                setTimeout(() => {
+                  stopLoading();
+                  setLoaderStatus('Done — loader hidden.');
+                  setTimeout(() => setLoaderStatus(null), 1500);
+                }, 2000);
+              }}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-medium rounded-lg transition-colors"
+            >
+              <Play size={11} />
+              Simulate
+            </button>
+          </div>
+
+          {/* Parallel requests */}
+          <div className="p-4 rounded-xl border border-indigo-200 dark:border-indigo-800">
+            <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-1">Parallel ×3</h3>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mb-3 leading-relaxed">
+              3 requests start together. Loader stays until the <em>last</em> one settles at 3 s.
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                startLoading(); startLoading(); startLoading(); // count → 3
+                setLoaderStatus('3 parallel requests in-flight…');
+                setTimeout(() => { stopLoading(); setLoaderStatus('1/3 done — loader still up (count: 2)…'); }, 1000);
+                setTimeout(() => { stopLoading(); setLoaderStatus('2/3 done — loader still up (count: 1)…'); }, 2000);
+                setTimeout(() => {
+                  stopLoading(); // count → 0
+                  setLoaderStatus('All 3 done — loader hidden.');
+                  setTimeout(() => setLoaderStatus(null), 1500);
+                }, 3000);
+              }}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-medium rounded-lg transition-colors"
+            >
+              <Play size={11} />
+              Simulate
+            </button>
+          </div>
+
+          {/* Silent opt-out */}
+          <div className="p-4 rounded-xl border border-gray-200 dark:border-gray-700">
+            <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-1">Silent (opt-out)</h3>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mb-3 leading-relaxed">
+              Mimics <code className="font-mono text-[10px]">showGlobalLoader: false</code>. Counter stays 0 — no overlay.
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                // deliberately does NOT call startLoading — simulates opt-out
+                setLoaderStatus('Silent request fired — counter unchanged, no overlay.');
+                setTimeout(() => {
+                  setLoaderStatus('Silent request complete.');
+                  setTimeout(() => setLoaderStatus(null), 1500);
+                }, 2000);
+              }}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-600 hover:bg-gray-700 text-white text-xs font-medium rounded-lg transition-colors"
+            >
+              <Play size={11} />
+              Simulate
+            </button>
+          </div>
+        </div>
+
+        {loaderStatus && (
+          <p className="mt-3 text-xs text-indigo-600 dark:text-indigo-400 flex items-center gap-1.5">
+            <Activity size={12} />
+            {loaderStatus}
+          </p>
+        )}
+      </div>
+
+      {/* ── SECTION 4: ErrorBoundary demo ────────────────────────────────── */}
+      <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-6">
+        <SectionHeader
+          icon={<Bug size={16} />}
+          title="ErrorBoundary Demo"
+          subtitle="Crash a scoped widget. The sidebar and all other sections stay intact."
+        />
+
+        <div className="space-y-3">
+          <div className="p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl flex items-start gap-2">
+            <Info size={14} className="flex-shrink-0 mt-0.5 text-blue-600 dark:text-blue-400" />
+            <p className="text-xs text-blue-700 dark:text-blue-300">
+              The widget below is wrapped in its own <code className="font-mono">{'<ErrorBoundary>'}</code>.
+              Click "Crash this widget" to throw a render-time JS error.
+              The boundary catches it and shows a fallback — the rest of the page
+              (sidebar, header, sections above/below) remains fully functional.
+              Click "Recover widget" to remount it clean.
+            </p>
+          </div>
+
+          <ErrorBoundary
+            resetKey={String(recoveryKey)}
+            fallback={(error) => (
+              <div className="p-4 rounded-xl border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20">
+                <div className="flex items-start gap-3">
+                  <AlertTriangle size={18} className="flex-shrink-0 text-red-500 mt-0.5" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-red-700 dark:text-red-400">
+                      ErrorBoundary caught a render error
+                    </p>
+                    <pre className="mt-1.5 text-xs text-red-500 font-mono bg-red-100 dark:bg-red-900/40 rounded p-2 overflow-auto whitespace-pre-wrap break-all">
+                      {error.message}
+                    </pre>
+                    <p className="mt-2 text-xs text-red-600 dark:text-red-400">
+                      Sidebar, header, and all other sections above/below this widget are still functional.
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setRecoveryKey((k) => k + 1)}
+                  className="mt-3 flex items-center gap-1.5 px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-medium rounded-lg transition-colors"
+                >
+                  <RotateCcw size={12} />
+                  Recover widget
+                </button>
+              </div>
+            )}
+          >
+            <CrashableWidget key={recoveryKey} />
+          </ErrorBoundary>
+        </div>
+      </div>
+
+      {/* ── SECTION 5: Feature flag toggles ──────────────────────────────── */}
       <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-6">
         <SectionHeader
           icon={<ShieldX size={16} />}
@@ -419,7 +646,7 @@ export default function ErrorPlaygroundPage() {
         </div>
       </div>
 
-      {/* ── SECTION 4: All error codes reference ─────────────────────────── */}
+      {/* ── SECTION 6: All error codes reference ─────────────────────────── */}
       <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-6">
         <SectionHeader
           icon={<Info size={16} />}
@@ -460,7 +687,7 @@ export default function ErrorPlaygroundPage() {
                       <Badge color={modeColor[cfg.displayMode] ?? 'gray'}>{cfg.displayMode}</Badge>
                     </td>
                     <td className="px-2 py-2.5 text-gray-500 dark:text-gray-400 font-mono">{cfg.iconName}</td>
-                    <td className="px-2 py-2.5 text-gray-600 dark:text-gray-300">{t(cfg.titleKey)}</td>
+                    <td className="px-2 py-2.5 text-gray-600 dark:text-gray-300">{translate(cfg.titleKey)}</td>
                   </tr>
                 );
               })}
@@ -483,11 +710,13 @@ function ScenarioCard({
   title,
   description,
   color,
+  displayMode,
   onClick,
 }: {
   title: string;
   description: string;
-  color: 'red' | 'amber' | 'indigo' | 'gray';
+  color: 'red' | 'amber' | 'indigo' | 'gray' | 'purple';
+  displayMode: ErrorDisplayMode;
   onClick: () => void;
 }) {
   const borderMap = {
@@ -495,19 +724,30 @@ function ScenarioCard({
     amber:  'border-amber-200 dark:border-amber-800 hover:border-amber-300 dark:hover:border-amber-700',
     indigo: 'border-indigo-200 dark:border-indigo-800 hover:border-indigo-300 dark:hover:border-indigo-700',
     gray:   'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600',
+    purple: 'border-purple-200 dark:border-purple-800 hover:border-purple-300 dark:hover:border-purple-700',
   };
   const btnMap = {
     red:    'bg-red-600 hover:bg-red-700',
     amber:  'bg-amber-500 hover:bg-amber-600',
     indigo: 'bg-indigo-600 hover:bg-indigo-700',
     gray:   'bg-gray-600 hover:bg-gray-700',
+    purple: 'bg-purple-600 hover:bg-purple-700',
+  };
+  const modeBadgeMap: Record<ErrorDisplayMode, string> = {
+    PAGE:   'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400',
+    MODAL:  'bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400',
+    TOAST:  'bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400',
+    INLINE: 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400',
   };
 
   return (
-    <div
-      className={`p-4 rounded-xl border transition-colors ${borderMap[color]}`}
-    >
-      <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-1">{title}</h3>
+    <div className={`p-4 rounded-xl border transition-colors ${borderMap[color]}`}>
+      <div className="flex items-start justify-between gap-2 mb-1">
+        <h3 className="text-sm font-semibold text-gray-900 dark:text-white">{title}</h3>
+        <span className={`flex-shrink-0 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold font-mono ${modeBadgeMap[displayMode]}`}>
+          {displayMode}
+        </span>
+      </div>
       <p className="text-xs text-gray-500 dark:text-gray-400 mb-3 leading-relaxed">{description}</p>
       <button
         type="button"

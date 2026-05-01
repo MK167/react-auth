@@ -4,7 +4,7 @@
  * ## Usage
  *
  * ```tsx
- * // In AppRouter.tsx — wrap a route group behind a feature flag:
+ * In AppRouter.tsx — wrap a route group behind a feature flag:
  * <Route element={<FeatureGuard featureFlag="betaReports" />}>
  *   <Route path="/admin/reports" element={<ReportsPage />} />
  * </Route>

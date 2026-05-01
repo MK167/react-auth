@@ -1,0 +1,11 @@
+# Ignore node_modules
+node_modules
+
+# Ignore .env
+.env
+
+# Ignore .env.local
+.env.local
+
+# Ignore .env.production
+.env.production

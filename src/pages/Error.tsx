@@ -47,7 +47,8 @@ import {
 import { ERROR_CONFIG_MAP } from '@/core/errors/error.config';
 import type { ErrorCode } from '@/core/errors/error.types';
 import type { ErrorActionButton } from '@/core/errors/error.types';
-import { useI18n } from '@/i18n/i18n.context';
+import { useI18n } from '@/i18n/use-i18n.hook';
+import { usePageMeta } from '@/hooks/usePageMeta';
 
 // ---------------------------------------------------------------------------
 // Icon resolver
@@ -132,7 +133,8 @@ export interface ErrorPageProps {
  * ```
  */
 export default function ErrorPage(props: ErrorPageProps) {
-  const { t } = useI18n();
+  usePageMeta('Error');
+  const { translate } = useI18n();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const primaryBtnRef = useRef<HTMLButtonElement>(null);
@@ -157,8 +159,8 @@ export default function ErrorPage(props: ErrorPageProps) {
   const icon = props.icon ?? ICON_MAP[config.iconName] ?? <AlertTriangle size={36} strokeWidth={1.5} />;
   const iconBgClass    = props.iconBgClass    ?? config.iconBgClass;
   const iconColorClass = props.iconColorClass ?? config.iconColorClass;
-  const title          = props.title          ?? t(config.titleKey);
-  const description    = props.description    ?? t(config.descriptionKey);
+  const title          = props.title          ?? translate(config.titleKey);
+  const description    = props.description    ?? translate(config.descriptionKey);
 
   const primaryAction: ErrorActionButton | undefined =
     props.primaryAction ?? (config.primaryAction

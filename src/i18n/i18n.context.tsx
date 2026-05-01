@@ -36,9 +36,9 @@
  *
  * STEP 1 — Wrap UserLayout routes with an optional lang prefix in AppRouter:
  * ```tsx
- * // In AppRouter.tsx, change:
+ *  In AppRouter.tsx, change:
  * <Route element={<UserLayout />}>
- * // To:
+ *  To:
  * <Route path="/:lang?" element={<UserLayout />}>
  * ```
  *
@@ -54,7 +54,7 @@
  * STEP 3 — Update all `navigate()` and `<NavLink to>` calls to include the lang:
  * ```tsx
  * navigate(`/${lang}/products`);
- * // or create a <LangLink> wrapper:
+ *  or create a <LangLink> wrapper:
  * function LangLink({ to, ...props }: LinkProps) {
  *   const { lang } = useI18n();
  *   return <NavLink to={`/${lang}${to}`} {...props} />;
@@ -63,7 +63,7 @@
  *
  * STEP 4 — Add a default redirect:
  * ```tsx
- * // In AppRouter, add a top-level redirect:
+ *  In AppRouter, add a top-level redirect:
  * <Route path="/" element={<Navigate to={`/${defaultLang}`} replace />} />
  * ```
  *
@@ -71,12 +71,12 @@
  * route is also prefixed. The above approach is documented but not activated
  * to keep the existing clean URL structure intact.
  *
- * ## Translation function `t(key)`
+ * ## Translation function `translate(key)`
  *
  * Keys are dot-notation paths into the locale object:
  * ```ts
- * t('nav.home')        // → 'Home' | 'الرئيسية'
- * t('home.hero.title') // → "Discover products you'll love" | 'اكتشف...'
+ * translate('nav.home')        // → 'Home' | 'الرئيسية'
+ * translate('home.hero.title') // → "Discover products you'll love" | 'اكتشف...'
  * ```
  *
  * If a key is not found the key string itself is returned as a fallback,
@@ -95,8 +95,6 @@
  */
 
 import {
-  createContext,
-  useContext,
   useEffect,
   useState,
   useCallback,
@@ -104,18 +102,15 @@ import {
 } from "react";
 import { en } from "./locales/en";
 import { ar } from "./locales/ar";
+import { useInitStore } from "@/core/init/init.store";
+import { fetchLocaleBundle } from "@/core/init/init.service";
+import { I18nContext, type Lang, type Dir } from "./i18n.types";
 
 // ---------------------------------------------------------------------------
-// Types
+// Helpers
 // ---------------------------------------------------------------------------
 
-/** The two supported language codes. */
-export type Lang = "en" | "ar";
-
-/** Writing direction derived from the language. */
-export type Dir = "ltr" | "rtl";
-
-/** Map of language codes to their locale objects. */
+/** Static fallback locales (used before dynamic bundle loads). */
 const LOCALES: Record<Lang, typeof en> = { en, ar };
 
 /** The direction associated with each supported language. */
@@ -123,36 +118,6 @@ const LANG_DIR: Record<Lang, Dir> = {
   en: "ltr",
   ar: "rtl",
 };
-
-/** Shape of the value exposed by `I18nContext`. */
-export type I18nContextValue = {
-  /** Currently active language code ('en' | 'ar'). */
-  lang: Lang;
-  /** Writing direction for the active language ('ltr' | 'rtl'). */
-  dir: Dir;
-  /**
-   * Translates a dot-notation key to the active locale string.
-   *
-   * @param key      - Dot-separated path into the locale object (e.g. 'nav.home').
-   * @param fallback - Optional fallback string if the key is not found.
-   *                   Defaults to the key string itself.
-   * @returns        The translated string.
-   */
-  t: (key: string, fallback?: string) => string;
-  /**
-   * Switches the active language. Persists to localStorage and updates the
-   * `dir` and `lang` attributes on `<html>` immediately.
-   *
-   * @param language - The target language code.
-   */
-  setLang: (language: Lang) => void;
-};
-
-// ---------------------------------------------------------------------------
-// Context
-// ---------------------------------------------------------------------------
-
-const I18nContext = createContext<I18nContextValue | null>(null);
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -221,8 +186,11 @@ function resolve(
 export function I18nProvider({ children }: { readonly children: ReactNode }) {
   const [lang, setLangState] = useState<Lang>(loadStoredLang);
 
+  // Dynamic bundles from init store (fetched by AppInitializer or on lang switch)
+  const dynamicLocales = useInitStore((s) => s.dynamicLocales);
+  const setLocaleBundle = useInitStore((s) => s.setLocaleBundle);
+
   // Apply lang + dir to <html> whenever language changes.
-  // Done in useEffect so SSR-safe (no document access at render time).
   useEffect(() => {
     const dir = LANG_DIR[lang];
     document.documentElement.lang = lang;
@@ -232,58 +200,42 @@ export function I18nProvider({ children }: { readonly children: ReactNode }) {
     } catch {
       // Non-fatal
     }
-  }, [lang]);
+
+    // Fetch dynamic bundle for the new language if not already loaded
+    if (!dynamicLocales[lang]) {
+      fetchLocaleBundle(lang).then((bundle) => {
+        setLocaleBundle(lang, bundle);
+      });
+    }
+  }, [lang, dynamicLocales, setLocaleBundle]);
 
   const setLang = useCallback((language: Lang) => {
     setLangState(language);
   }, []);
 
-  const t = useCallback(
+  const translate = useCallback(
     (key: string, fallback?: string): string => {
-      const locale = LOCALES[lang] as Record<string, unknown>;
-      return resolve(locale, key, fallback ?? key);
+      const dynamicLocale = dynamicLocales[lang] as Record<string, unknown> | undefined;
+      const staticLocale = LOCALES[lang] as Record<string, unknown>;
+
+      // Try dynamic bundle first (server-overridable). If the key is missing
+      // (e.g. bundle was fetched before a new key was added), fall through to
+      // the static TypeScript import which always has the latest keys.
+      if (dynamicLocale) {
+        const result = resolve(dynamicLocale, key, '');
+        if (result !== '') return result;
+      }
+      return resolve(staticLocale, key, fallback ?? key);
     },
-    [lang],
+    [lang, dynamicLocales],
   );
 
   const dir = LANG_DIR[lang];
 
   return (
-    <I18nContext.Provider value={{ lang, dir, t, setLang }}>
+    <I18nContext.Provider value={{ lang, dir, translate, setLang }}>
       {children}
     </I18nContext.Provider>
   );
 }
 
-// ---------------------------------------------------------------------------
-// Hook
-// ---------------------------------------------------------------------------
-
-/**
- * Provides access to the active language, direction, translation function,
- * and the language setter.
- *
- * **Usage:**
- * ```tsx
- * function MyComponent() {
- *   const { t, lang, setLang, dir } = useI18n();
- *   return (
- *     <div dir={dir}>
- *       <h1>{t('home.hero.title')}</h1>
- *       <button onClick={() => setLang(lang === 'en' ? 'ar' : 'en')}>
- *         {t('nav.language')}
- *       </button>
- *     </div>
- *   );
- * }
- * ```
- *
- * @throws If called outside of an `I18nProvider` tree.
- */
-export function useI18n(): I18nContextValue {
-  const ctx = useContext(I18nContext);
-  if (!ctx) {
-    throw new Error("useI18n must be used within an <I18nProvider>");
-  }
-  return ctx;
-}

@@ -12,10 +12,11 @@ import {
 } from "@/config/firebase";
 import { useAuthStore } from "@/store/auth.store";
 import { useNavigate } from "react-router-dom";
-import type { UserType } from "@/types/auth.types";
 import { useCartMerge } from "@/hooks/useCartMerge";
 import { useWishlistSync } from "@/hooks/useWishlistSync";
 import { prefetchAdminDashboard } from "@/utils/prefetch";
+import { socialLoginApi } from "@/api/auth.api";
+import { cookieService } from "@/utils/cookie.service";
 
 /**
  * @fileoverview useSocialAuth — custom hook for Firebase-based social authentication.
@@ -109,21 +110,22 @@ export function useSocialAuth() {
       const provider = providerMap[providerName];
       const result = await signInWithPopup(auth, provider);
       const firebaseUser = result.user;
-      const accessToken = await firebaseUser.getIdToken();
 
-      // Social login users receive the CUSTOMER role so they can access
-      // the ecommerce routes protected by RoleGuard(['CUSTOMER','ADMIN','MANAGER']).
-      const user: UserType = {
-        _id: firebaseUser.uid,
-        email: firebaseUser.email ?? "",
-        username:
-          firebaseUser.displayName ??
-          firebaseUser.email?.split("@")[0] ??
-          firebaseUser.uid,
-        role: "CUSTOMER",
-      };
+      // Exchange the Firebase identity for a backend-issued token pair.
+      // This registers the user on the mock server (or finds an existing
+      // account by email) and returns a proper access + refresh token so
+      // the Axios silent-refresh flow works correctly.
+      const backendResponse = await socialLoginApi({
+        uid:         firebaseUser.uid,
+        email:       firebaseUser.email ?? "",
+        displayName: firebaseUser.displayName ?? firebaseUser.email?.split("@")[0] ?? firebaseUser.uid,
+      });
+
+      const user        = backendResponse.data.user;
+      const accessToken = backendResponse.data.accessToken;
 
       setAuth(user, accessToken);
+      cookieService.setRefreshToken(backendResponse.data.refreshToken);
 
       // Fire-and-forget: merge guest localStorage cart and sync wishlist
       // to the server in the background — navigation is not delayed.

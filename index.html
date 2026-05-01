@@ -4,12 +4,23 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="ShopHub — discover thousands of products with fast shipping, easy returns, and secure checkout." />
     <title>ShopHub</title>
+
+    <!--
+      Preconnect to the image CDN used by product photos.
+      Establishing the TCP+TLS handshake early saves ~200–400 ms on the
+      Largest Contentful Paint image, which is fetched from this origin.
+    -->
+    <link rel="preconnect" href="https://fastly.picsum.photos" crossorigin />
+    <link rel="preconnect" href="https://picsum.photos" crossorigin />
 
     <!--
       Apply dark class before first paint to prevent FOUC for dark-mode users.
       This mirrors the logic in ThemeProvider (localStorage key: 'app-theme').
       Must run synchronously — do NOT defer or async this script.
+      Flash of Unstyled Content (FOUC) is especially jarring in dark mode, 
+      so we apply the theme class as early as possible.  This is a common technique for theme management in React apps, and ensures that the correct theme is applied immediately on page load, even before React hydrates and takes over the DOM.
     -->
     <script>
       try {

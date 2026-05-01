@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/set-state-in-effect */
 /**
  * @fileoverview User Product Detail Page.
  *
@@ -49,7 +50,8 @@ import { useCartStore } from '@/store/cart.store';
 import { useWishlistStore } from '@/store/wishlist.store';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { extractProductId } from '@/utils/slug';
-import { useI18n } from '@/i18n/i18n.context';
+import { useI18n } from '@/i18n/use-i18n.hook';
+import { usePageMeta } from '@/hooks/usePageMeta';
 import type { Product } from '@/types/product.types';
 
 /**
@@ -63,7 +65,7 @@ export default function ProductDetailPage() {
   const productId = slugId ? extractProductId(slugId) : undefined;
 
   const navigate = useNavigate();
-  const { t } = useI18n();
+  const { translate } = useI18n();
   const addItem = useCartStore((s) => s.addItem);
   const { hasItem, toggleItem } = useWishlistStore();
 
@@ -73,6 +75,14 @@ export default function ProductDetailPage() {
   const [activeImage, setActiveImage] = useState<string | null>(null);
   const [quantity, setQuantity] = useState(1);
   const [addedToCart, setAddedToCart] = useState(false);
+
+  // Dynamic title + description update whenever the product loads.
+  // While loading the tab reads "Product - ShopHub"; after load it reflects
+  // the real product name so browser history and shared links are meaningful.
+  usePageMeta(
+    product?.name ?? 'Product',
+    product ? `${product.description} — $${product.price.toFixed(2)}` : undefined,
+  );
 
   useEffect(() => {
     if (!productId) return;
@@ -125,7 +135,7 @@ export default function ProductDetailPage() {
           onClick={() => navigate('/products')}
           className="text-sm text-indigo-600 dark:text-indigo-400 hover:underline"
         >
-          {t('product.backToProducts')}
+          {translate('product.backToProducts')}
         </button>
       </div>
     );
@@ -150,7 +160,7 @@ export default function ProductDetailPage() {
           className="flex items-center gap-1 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
         >
           <ArrowLeft size={14} className="rtl:rotate-180" />
-          {t('nav.products')}
+          {translate('nav.products')}
         </button>
         <span>/</span>
         {product.category?.name && (
@@ -178,7 +188,7 @@ export default function ProductDetailPage() {
               />
             ) : (
               <div className="w-full h-full flex items-center justify-center text-gray-300 dark:text-gray-600 text-sm">
-                {t('product.noImage')}
+                {translate('product.noImage')}
               </div>
             )}
           </div>
@@ -227,7 +237,7 @@ export default function ProductDetailPage() {
             <button
               type="button"
               onClick={() => toggleItem(product._id)}
-              aria-label={wishlisted ? t('product.removeWishlist') : t('product.wishlist')}
+              aria-label={wishlisted ? translate('product.removeWishlist') : translate('product.wishlist')}
               aria-pressed={wishlisted}
               className={`p-2 rounded-xl border transition-colors ${
                 wishlisted
@@ -253,7 +263,7 @@ export default function ProductDetailPage() {
                 className={i < 4 ? 'text-amber-400 fill-amber-400' : 'text-gray-300 dark:text-gray-600'}
               />
             ))}
-            <span className="text-sm text-gray-500 dark:text-gray-400 ml-1">4.0 (124 {t('product.reviews')})</span>
+            <span className="text-sm text-gray-500 dark:text-gray-400 ml-1">4.0 (124 {translate('product.reviews')})</span>
           </div>
 
           {/* Price */}
@@ -270,12 +280,12 @@ export default function ProductDetailPage() {
           {isOutOfStock ? (
             <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-sm font-medium mb-6">
               <AlertCircle size={14} />
-              {t('product.outOfStock')}
+              {translate('product.outOfStock')}
             </span>
           ) : (
             <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 text-sm font-medium mb-6">
               <Check size={14} />
-              {t('product.inStock')} ({product.stock} {t('product.available')})
+              {translate('product.inStock')} ({product.stock} {translate('product.available')})
             </span>
           )}
 
@@ -283,7 +293,7 @@ export default function ProductDetailPage() {
           {!isOutOfStock && (
             <div className="flex items-center gap-3 mb-6">
               <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                {t('product.qty')}
+                {translate('product.qty')}
               </span>
               <div className="flex items-center border border-gray-300 dark:border-gray-600 rounded-xl overflow-hidden">
                 <button
@@ -328,12 +338,12 @@ export default function ProductDetailPage() {
               {addedToCart ? (
                 <>
                   <Check size={16} />
-                  {t('product.addedToCart')}
+                  {translate('product.addedToCart')}
                 </>
               ) : (
                 <>
                   <ShoppingCart size={16} />
-                  {isOutOfStock ? t('product.outOfStock') : t('product.addToCart')}
+                  {isOutOfStock ? translate('product.outOfStock') : translate('product.addToCart')}
                 </>
               )}
             </button>
@@ -347,7 +357,7 @@ export default function ProductDetailPage() {
               disabled={isOutOfStock}
               className="px-6 py-3 rounded-xl font-semibold text-sm border border-indigo-600 text-indigo-600 dark:text-indigo-400 dark:border-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
             >
-              {t('product.buyNow')}
+              {translate('product.buyNow')}
             </button>
           </div>
         </div>

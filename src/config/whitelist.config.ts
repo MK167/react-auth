@@ -107,6 +107,12 @@ export const WHITELIST_CONFIG: Record<string, WhitelistRule> = {
   '/admin/orders': {
     allowedRoles: ['ADMIN', 'MANAGER'],
   },
+
+  // ── Realtime chat — ADMIN only + feature flag ──────────────────────────────
+  '/admin/realtime-chat': {
+    allowedRoles: ['ADMIN', 'MANAGER'],
+    requiredFeatureFlags: ['realtimeChat'],
+  },
 };
 
 // ---------------------------------------------------------------------------

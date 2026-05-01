@@ -45,6 +45,7 @@ import {
   type RegisterFormValues,
 } from "@/schemas/register.schema";
 import { useAuthStore } from "@/store/auth.store";
+import { usePageMeta } from "@/hooks/usePageMeta";
 import type { ButtonLoadingState } from "@/types/auth.types";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useState } from "react";
@@ -67,6 +68,7 @@ const initialValue: RegisterFormValues = {
  * `AuthLayout` so no wrapper div is needed here.
  */
 export default function Register() {
+  usePageMeta('Create Account', 'Create a free ShopHub account and start shopping today.');
   const { setAuth } = useAuthStore();
   const navigate = useNavigate();
   const [serverError, setServerError] = useState("");

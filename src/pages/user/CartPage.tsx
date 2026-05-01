@@ -33,12 +33,16 @@ import { Trash2, Plus, Minus, ShoppingBag, ArrowRight } from 'lucide-react';
 import { useCartStore } from '@/store/cart.store';
 import { toProductSlugId } from '@/utils/slug';
 import { prefetchCheckout } from '@/utils/prefetch';
+import { useI18n } from '@/i18n/use-i18n.hook';
+import { usePageMeta } from '@/hooks/usePageMeta';
 
 /**
  * Shopping cart page — line items, quantity controls, totals, and checkout CTA.
  */
 export default function CartPage() {
+  usePageMeta('Cart', 'Review your cart items and proceed to secure checkout.');
   const navigate = useNavigate();
+  const { translate } = useI18n();
   const { items, removeItem, updateQuantity, clearCart, getTotalPrice, getTotalItems } =
     useCartStore();
 
@@ -55,17 +59,17 @@ export default function CartPage() {
       <div className="max-w-md mx-auto text-center py-20">
         <ShoppingBag size={56} className="text-gray-300 dark:text-gray-600 mx-auto mb-4" />
         <h1 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
-          Your cart is empty
+          {translate('cart.emptyTitle')}
         </h1>
         <p className="text-gray-500 dark:text-gray-400 text-sm mb-6">
-          Add some products to your cart to get started.
+          {translate('cart.emptySubtitle')}
         </p>
         <button
           type="button"
           onClick={() => navigate('/products')}
           className="inline-flex items-center gap-2 px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-xl text-sm transition-colors"
         >
-          Browse products
+          {translate('cart.browseProducts')}
           <ArrowRight size={15} />
         </button>
       </div>
@@ -77,14 +81,14 @@ export default function CartPage() {
       {/* Heading */}
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-          Cart <span className="text-gray-400 font-normal text-lg">({totalItems})</span>
+          {translate('cart.title')} <span className="text-gray-400 font-normal text-lg">({totalItems})</span>
         </h1>
         <button
           type="button"
           onClick={clearCart}
           className="text-sm text-red-500 hover:text-red-700 hover:underline transition-colors"
         >
-          Clear cart
+          {translate('cart.clearCart')}
         </button>
       </div>
 
@@ -110,7 +114,7 @@ export default function CartPage() {
                   />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center text-gray-300 text-xs">
-                    No img
+                    {translate('cart.noImage')}
                   </div>
                 )}
               </div>
@@ -174,26 +178,26 @@ export default function CartPage() {
         {/* Order summary */}
         <div className="lg:col-span-1">
           <div className="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl p-5 sticky top-20">
-            <h2 className="font-semibold text-gray-900 dark:text-white mb-4">Order summary</h2>
+            <h2 className="font-semibold text-gray-900 dark:text-white mb-4">{translate('cart.summary')}</h2>
 
             <div className="space-y-2 mb-4">
               <div className="flex justify-between text-sm text-gray-600 dark:text-gray-300">
-                <span>Subtotal ({totalItems} items)</span>
+                <span>{translate('cart.subtotal')} ({totalItems} {totalItems !== 1 ? translate('cart.items') : translate('orders.item')})</span>
                 <span>${totalPrice.toFixed(2)}</span>
               </div>
               <div className="flex justify-between text-sm text-gray-600 dark:text-gray-300">
-                <span>Shipping</span>
-                <span className="text-green-600 dark:text-green-400">Free</span>
+                <span>{translate('cart.shipping')}</span>
+                <span className="text-green-600 dark:text-green-400">{translate('cart.free')}</span>
               </div>
               <div className="flex justify-between text-sm text-gray-600 dark:text-gray-300">
-                <span>Tax (est.)</span>
+                <span>{translate('cart.tax')}</span>
                 <span>${(totalPrice * 0.1).toFixed(2)}</span>
               </div>
             </div>
 
             <div className="border-t border-gray-100 dark:border-gray-700 pt-3 mb-5">
               <div className="flex justify-between font-bold text-gray-900 dark:text-white">
-                <span>Total</span>
+                <span>{translate('cart.total')}</span>
                 <span>${(totalPrice * 1.1).toFixed(2)}</span>
               </div>
             </div>
@@ -203,7 +207,7 @@ export default function CartPage() {
               onClick={() => navigate('/checkout')}
               className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl text-sm transition-colors"
             >
-              Proceed to checkout
+              {translate('cart.checkout')}
               <ArrowRight size={15} />
             </button>
 
@@ -212,7 +216,7 @@ export default function CartPage() {
               onClick={() => navigate('/products')}
               className="w-full mt-3 text-sm text-gray-500 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
             >
-              Continue shopping
+              {translate('cart.continueShopping')}
             </button>
           </div>
         </div>

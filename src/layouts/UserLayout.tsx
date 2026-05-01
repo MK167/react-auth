@@ -4,27 +4,22 @@
  * ## Layout structure
  *
  * ```
- * ┌─────────────────────────────────────────────────────────────┐
- * │  Logo    Home  Products  Orders  Profile    🛒(2)  Avatar   │  ← Header
- * ├─────────────────────────────────────────────────────────────┤
- * │                                                             │
- * │   <Outlet /> — user page content (Home, Products, etc.)    │
- * │                                                             │
- * └─────────────────────────────────────────────────────────────┘
+ * ┌──────────────────────────────────────────────────────────────┐
+ * │  Logo   Home  Products  Orders  Profile   🤍(n)  🛒(n)  👤  │  ← Desktop header
+ * │  Logo                                     🤍(n)  🛒(n)   ☰  │  ← Mobile header
+ * ├──────────────────────────────────────────────────────────────┤
+ * │                                                              │
+ * │   <Outlet /> — page content                                  │
+ * │                                                              │
+ * └──────────────────────────────────────────────────────────────┘
  * ```
  *
- * ## Mobile navigation modes
+ * ## Mobile navigation
  *
- * Two mobile nav styles are available and toggled by the `PanelLeft` icon
- * button next to the hamburger. The preference is persisted in localStorage
- * under the key `mobileNavStyle`.
- *
- * - **dropdown** (default): A menu panel slides down below the header when
- *   the hamburger is tapped. This is compact and keeps the page visible.
- *
- * - **sidebar**: A full-height drawer slides in from the leading edge
- *   (left in LTR, right in RTL) with a semi-transparent backdrop. Mirrors
- *   the admin panel drawer UX. Better for apps with many nav items.
+ * On mobile the header is kept minimal: logo, wishlist badge, cart badge, and
+ * a hamburger. Tapping the hamburger slides in a full-height sidebar that
+ * contains nav links (with icons), theme toggle, language toggle, user info,
+ * and sign-out — everything in one place.
  *
  * @module layouts/UserLayout
  */
@@ -33,6 +28,7 @@ import { useState, useCallback } from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import {
   ShoppingCart,
+  Heart,
   User,
   LogOut,
   Menu,
@@ -41,36 +37,29 @@ import {
   Moon,
   Package,
   Globe,
-  PanelLeft,
-  AlignJustify,
+  Home,
+  ShoppingBag,
+  ClipboardList,
 } from 'lucide-react';
 import { useAuthStore } from '@/store/auth.store';
 import { useCartStore } from '@/store/cart.store';
+import { useWishlistStore } from '@/store/wishlist.store';
+import { addToServerCart } from '@/api/cart.api';
 import { useTheme } from '@/themes/theme.context';
-import { useI18n } from '@/i18n/i18n.context';
+import { useI18n } from '@/i18n/use-i18n.hook';
 
 // ---------------------------------------------------------------------------
 // Navigation config
 // ---------------------------------------------------------------------------
 
-type NavItem = { labelKey: string; to: string };
+type NavItem = { labelKey: string; to: string; icon: React.ReactNode };
 
 const NAV_ITEMS: NavItem[] = [
-  { labelKey: 'nav.home',     to: '/' },
-  { labelKey: 'nav.products', to: '/products' },
-  { labelKey: 'nav.orders',   to: '/orders' },
-  { labelKey: 'nav.profile',  to: '/profile' },
+  { labelKey: 'nav.home',     to: '/',         icon: <Home size={18} /> },
+  { labelKey: 'nav.products', to: '/products', icon: <ShoppingBag size={18} /> },
+  { labelKey: 'nav.orders',   to: '/orders',   icon: <ClipboardList size={18} /> },
+  { labelKey: 'nav.profile',  to: '/profile',  icon: <User size={18} /> },
 ];
-
-type MobileNavStyle = 'dropdown' | 'sidebar';
-
-function loadNavStyle(): MobileNavStyle {
-  try {
-    const saved = localStorage.getItem('mobileNavStyle');
-    if (saved === 'dropdown' || saved === 'sidebar') return saved;
-  } catch { /* non-fatal */ }
-  return 'dropdown';
-}
 
 // ---------------------------------------------------------------------------
 // Component
@@ -78,31 +67,32 @@ function loadNavStyle(): MobileNavStyle {
 
 export default function UserLayout() {
   const { user, logout } = useAuthStore();
-  const getTotalItems = useCartStore((s) => s.getTotalItems);
+  // Reactive selectors — subscribe to items array so badge updates instantly
+  const cartCount = useCartStore((s) => s.items.reduce((sum, i) => sum + i.quantity, 0));
+  const wishlistCount = useWishlistStore((s) => s.items.length);
   const { theme, toggleTheme } = useTheme();
-  const { t, lang, setLang } = useI18n();
+  const { translate, lang, setLang } = useI18n();
   const navigate = useNavigate();
 
   const [menuOpen, setMenuOpen] = useState(false);
-  const [mobileNavStyle, setMobileNavStyle] = useState<MobileNavStyle>(loadNavStyle);
 
-  const cartCount = getTotalItems();
-
-  const handleLogout = useCallback(() => {
+  const handleLogout = useCallback(async () => {
+    // Persist the current Zustand cart to the server before clearing local
+    // state. This ensures the cart survives the session so it is reloaded
+    // on the next login via useCartMerge.
+    const items = useCartStore.getState().items;
+    if (items.length > 0) {
+      await Promise.allSettled(
+        items.map(({ product, quantity }) =>
+          addToServerCart(product._id, quantity),
+        ),
+      );
+    }
     logout();
     navigate('/login', { replace: true });
   }, [logout, navigate]);
 
   const closeMenu = useCallback(() => setMenuOpen(false), []);
-
-  const toggleNavStyle = useCallback(() => {
-    setMobileNavStyle((prev) => {
-      const next: MobileNavStyle = prev === 'dropdown' ? 'sidebar' : 'dropdown';
-      try { localStorage.setItem('mobileNavStyle', next); } catch { /* non-fatal */ }
-      return next;
-    });
-    setMenuOpen(false);
-  }, []);
 
   const navLinkClass = ({ isActive }: { isActive: boolean }) =>
     `text-sm font-medium transition-colors ${
@@ -112,7 +102,7 @@ export default function UserLayout() {
     }`;
 
   return (
-    <div className="min-h-screen bg-white dark:bg-gray-950 transition-colors duration-300">
+    <div className="min-h-screen flex flex-col bg-white dark:bg-gray-950 transition-colors duration-300">
       {/* ------------------------------------------------------------------ */}
       {/* Header                                                              */}
       {/* ------------------------------------------------------------------ */}
@@ -134,38 +124,55 @@ export default function UserLayout() {
           <nav aria-label="Main navigation" className="hidden md:flex items-center gap-6">
             {NAV_ITEMS.map((item) => (
               <NavLink key={item.to} to={item.to} className={navLinkClass}>
-                {t(item.labelKey)}
+                {translate(item.labelKey)}
               </NavLink>
             ))}
           </nav>
 
           {/* Right actions */}
-          <div className="flex items-center gap-2 flex-shrink-0">
-            {/* Theme toggle */}
+          <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
+            {/* Theme toggle — desktop only */}
             <button
               type="button"
               onClick={toggleTheme}
               aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-              className="p-2 rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+              className="hidden md:flex p-2 rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
             >
               {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
             </button>
 
-            {/* Language toggle */}
+            {/* Language toggle — desktop only */}
             <button
               type="button"
               onClick={() => setLang(lang === 'en' ? 'ar' : 'en')}
               aria-label={lang === 'en' ? 'Switch to Arabic' : 'Switch to English'}
-              className="flex items-center gap-1 p-2 rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors text-xs font-semibold"
+              className="hidden md:flex items-center gap-1 p-2 rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors text-xs font-semibold"
             >
               <Globe size={16} />
               {lang === 'en' ? 'AR' : 'EN'}
             </button>
 
-            {/* Cart */}
+            {/* Wishlist — always visible with badge */}
+            <NavLink
+              to="/wishlist"
+              aria-label={`${translate('nav.wishlist')} — ${wishlistCount} items`}
+              className="relative p-2 rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+            >
+              <Heart size={20} />
+              {wishlistCount > 0 && (
+                <span
+                  aria-hidden="true"
+                  className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] bg-rose-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1"
+                >
+                  {wishlistCount > 99 ? '99+' : wishlistCount}
+                </span>
+              )}
+            </NavLink>
+
+            {/* Cart — always visible with badge */}
             <NavLink
               to="/cart"
-              aria-label={`${t('nav.cart')} — ${cartCount} ${cartCount !== 1 ? t('cart.items') : 'item'}`}
+              aria-label={`${translate('nav.cart')} — ${cartCount} ${cartCount !== 1 ? translate('cart.items') : 'item'}`}
               className="relative p-2 rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
             >
               <ShoppingCart size={20} />
@@ -180,7 +187,7 @@ export default function UserLayout() {
               <span className="sr-only">{cartCount} items in cart</span>
             </NavLink>
 
-            {/* User dropdown — desktop only */}
+            {/* User avatar + logout — desktop only */}
             <div className="hidden md:flex items-center gap-2">
               {user && (
                 <>
@@ -200,7 +207,7 @@ export default function UserLayout() {
                   <button
                     type="button"
                     onClick={handleLogout}
-                    aria-label={t('nav.signOut')}
+                    aria-label={translate('nav.signOut')}
                     className="p-2 rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-red-500 transition-colors"
                   >
                     <LogOut size={18} />
@@ -208,38 +215,6 @@ export default function UserLayout() {
                 </>
               )}
             </div>
-
-            {/* Profile icon — mobile only */}
-            <NavLink
-              to="/profile"
-              className="md:hidden p-2 rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-              aria-label="Profile"
-            >
-              <User size={20} />
-            </NavLink>
-
-            {/* Nav style toggle (dropdown ↔ sidebar) — mobile only */}
-            <button
-              type="button"
-              onClick={toggleNavStyle}
-              aria-label={
-                mobileNavStyle === 'sidebar'
-                  ? 'Switch to dropdown menu'
-                  : 'Switch to sidebar menu'
-              }
-              title={
-                mobileNavStyle === 'sidebar'
-                  ? 'Switch to dropdown menu'
-                  : 'Switch to sidebar menu'
-              }
-              className="md:hidden p-2 rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-            >
-              {mobileNavStyle === 'sidebar' ? (
-                <AlignJustify size={18} />
-              ) : (
-                <PanelLeft size={18} />
-              )}
-            </button>
 
             {/* Hamburger — mobile only */}
             <button
@@ -253,144 +228,134 @@ export default function UserLayout() {
             </button>
           </div>
         </div>
-
-        {/* ---------------------------------------------------------------- */}
-        {/* Mobile nav — DROPDOWN style                                       */}
-        {/* ---------------------------------------------------------------- */}
-        {mobileNavStyle === 'dropdown' && menuOpen && (
-          <div className="md:hidden border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 px-4 py-3 space-y-1">
-            {NAV_ITEMS.map((item) => (
-              <NavLink
-                key={item.to}
-                to={item.to}
-                onClick={closeMenu}
-                className={({ isActive }) =>
-                  `block px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                    isActive
-                      ? 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400'
-                      : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
-                  }`
-                }
-              >
-                {t(item.labelKey)}
-              </NavLink>
-            ))}
-            {user && (
-              <button
-                type="button"
-                onClick={handleLogout}
-                className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
-              >
-                <LogOut size={16} />
-                {t('nav.signOut')}
-              </button>
-            )}
-          </div>
-        )}
       </header>
 
       {/* ------------------------------------------------------------------ */}
-      {/* Mobile nav — SIDEBAR style                                          */}
-      {/* Rendered outside the header so it overlays the full page.          */}
+      {/* Mobile nav — full-height sidebar drawer                            */}
       {/* ------------------------------------------------------------------ */}
-      {mobileNavStyle === 'sidebar' && (
-        <>
-          {/* Backdrop */}
-          {menuOpen && (
-            <div
-              className="fixed inset-0 z-40 bg-black/50 backdrop-blur-[1px] md:hidden"
-              onClick={closeMenu}
-              aria-hidden="true"
-            />
-          )}
 
-          {/* Drawer — slides from the leading edge, RTL-aware via ltr:/rtl: variants */}
-          <aside
-            className={`fixed inset-y-0 start-0 z-50 flex flex-col w-72 bg-white dark:bg-gray-900 border-e border-gray-200 dark:border-gray-800 shadow-2xl transform transition-transform duration-200 ease-in-out md:hidden ${
-              menuOpen
-                ? 'translate-x-0'
-                : 'ltr:-translate-x-full rtl:translate-x-full'
-            }`}
-            aria-label="Mobile navigation sidebar"
-          >
-            {/* Drawer header */}
-            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200 dark:border-gray-800">
-              <NavLink
-                to="/"
-                onClick={closeMenu}
-                className="flex items-center gap-2 text-gray-900 dark:text-white font-bold text-lg"
-              >
-                <Package size={20} className="text-indigo-600" />
-                ShopHub
-              </NavLink>
-              <button
-                type="button"
-                onClick={closeMenu}
-                aria-label="Close sidebar"
-                className="p-2 rounded-lg text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-              >
-                <X size={18} />
-              </button>
-            </div>
-
-            {/* Nav links */}
-            <nav
-              aria-label="Main navigation"
-              className="flex-1 px-3 py-4 space-y-1 overflow-y-auto"
-            >
-              {NAV_ITEMS.map((item) => (
-                <NavLink
-                  key={item.to}
-                  to={item.to}
-                  onClick={closeMenu}
-                  className={({ isActive }) =>
-                    `flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors ${
-                      isActive
-                        ? 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400'
-                        : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
-                    }`
-                  }
-                >
-                  {t(item.labelKey)}
-                </NavLink>
-              ))}
-            </nav>
-
-            {/* Drawer footer — user info + logout */}
-            <div className="px-4 py-4 border-t border-gray-200 dark:border-gray-800">
-              {user && (
-                <>
-                  <div className="flex items-center gap-3 px-1 mb-3">
-                    <div className="w-9 h-9 rounded-full bg-indigo-600 flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
-                      {user.username.charAt(0).toUpperCase()}
-                    </div>
-                    <span className="text-sm font-medium text-gray-900 dark:text-white truncate">
-                      {user.username}
-                    </span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={handleLogout}
-                    className="flex items-center gap-2 w-full px-4 py-2.5 rounded-xl text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
-                  >
-                    <LogOut size={16} />
-                    {t('nav.signOut')}
-                  </button>
-                </>
-              )}
-            </div>
-          </aside>
-        </>
+      {/* Backdrop */}
+      {menuOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/50 backdrop-blur-[1px] md:hidden"
+          onClick={closeMenu}
+          aria-hidden="true"
+        />
       )}
 
+      {/* Drawer — slides from the leading edge, RTL-aware */}
+      <aside
+        className={`fixed inset-y-0 start-0 z-50 flex flex-col w-72 bg-white dark:bg-gray-900 border-e border-gray-200 dark:border-gray-800 shadow-2xl transform transition-transform duration-200 ease-in-out md:hidden ${
+          menuOpen ? 'translate-x-0' : 'ltr:-translate-x-full rtl:translate-x-full'
+        }`}
+        aria-label="Mobile navigation"
+        aria-hidden={!menuOpen}
+      >
+        {/* Drawer header */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200 dark:border-gray-800">
+          <NavLink
+            to="/"
+            onClick={closeMenu}
+            className="flex items-center gap-2 text-gray-900 dark:text-white font-bold text-lg"
+          >
+            <Package size={20} className="text-indigo-600" />
+            ShopHub
+          </NavLink>
+          <button
+            type="button"
+            onClick={closeMenu}
+            aria-label="Close menu"
+            className="p-2 rounded-lg text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+          >
+            <X size={18} />
+          </button>
+        </div>
+
+        {/* Nav links with icons */}
+        <nav
+          aria-label="Main navigation"
+          className="flex-1 px-3 py-4 space-y-1 overflow-y-auto"
+        >
+          {NAV_ITEMS.map((item) => (
+            <NavLink
+              key={item.to}
+              to={item.to}
+              onClick={closeMenu}
+              className={({ isActive }) =>
+                `flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors ${
+                  isActive
+                    ? 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400'
+                    : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
+                }`
+              }
+            >
+              {item.icon}
+              {translate(item.labelKey)}
+            </NavLink>
+          ))}
+        </nav>
+
+        {/* Footer: theme, language, user info, logout */}
+        <div className="px-3 py-3 border-t border-gray-200 dark:border-gray-800 space-y-1">
+          {/* Theme toggle */}
+          <button
+            type="button"
+            onClick={toggleTheme}
+            className="flex items-center gap-3 w-full px-4 py-2.5 rounded-xl text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+          >
+            {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
+            {theme === 'dark' ? translate('common.lightMode') : translate('common.darkMode')}
+          </button>
+
+          {/* Language toggle */}
+          <button
+            type="button"
+            onClick={() => {
+              setLang(lang === 'en' ? 'ar' : 'en');
+              closeMenu();
+            }}
+            className="flex items-center gap-3 w-full px-4 py-2.5 rounded-xl text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+          >
+            <Globe size={18} />
+            {lang === 'en' ? 'العربية' : 'English'}
+          </button>
+
+          {/* User info + logout */}
+          {user && (
+            <>
+              <div className="flex items-center gap-3 px-4 py-2.5">
+                <div className="w-8 h-8 rounded-full bg-indigo-600 flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
+                  {user.username.charAt(0).toUpperCase()}
+                </div>
+                <span className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                  {user.username}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  handleLogout();
+                  closeMenu();
+                }}
+                className="flex items-center gap-3 w-full px-4 py-2.5 rounded-xl text-sm font-medium text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+              >
+                <LogOut size={18} />
+                {translate('nav.signOut')}
+              </button>
+            </>
+          )}
+        </div>
+      </aside>
+
       {/* Page content */}
-      <main role="main" className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
+      <main role="main" className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-6">
         <Outlet />
       </main>
 
-      {/* Footer */}
-      <footer className="border-t border-gray-200 dark:border-gray-800 mt-12 py-6 text-center">
-        <p className="text-sm text-gray-400 dark:text-gray-500">
+      {/* Footer — flex-shrink-0 prevents CLS caused by layout reflow when
+          main content height changes during data loading. */}
+      <footer className="flex-shrink-0 border-t border-gray-200 dark:border-gray-800 py-6 text-center">
+        <p className="text-sm text-gray-500 dark:text-gray-400">
           © {new Date().getFullYear()} ShopHub. All rights reserved.
         </p>
       </footer>

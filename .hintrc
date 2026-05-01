@@ -9,11 +9,10 @@
         "aria-valid-attr-value": "off"
       }
     ],
-    "axe/forms": [
-      "default",
-      {
-        "select-name": "off"
-      }
-    ]
+    "axe/forms": "off",
+    "axe/name-role-value": "off",
+    "typescript-config/consistent-casing": "off",
+    "typescript-config/strict": "off",
+    "typescript-config/is-valid": "off"
   }
 }

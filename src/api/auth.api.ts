@@ -3,6 +3,19 @@ import type { AuthResponse, RegisterResponse } from "@/types/auth.types";
 import type { RegisterFormValues } from "@/schemas/register.schema";
 import { authUrl } from "@/config/Define";
 
+type SocialLoginPayload = { uid: string; email: string; displayName: string };
+
+/**
+ * Exchanges a Firebase-authenticated user's profile for a backend-issued
+ * access + refresh token pair. Used by useSocialAuth after signInWithPopup.
+ */
+export const socialLoginApi = async (
+  payload: SocialLoginPayload,
+): Promise<AuthResponse> => {
+  const response = await authUrl.post<AuthResponse>('/users/social-login', payload);
+  return response.data;
+};
+
 /**
  * Logs in a user with the provided credentials.
  *

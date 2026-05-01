@@ -57,6 +57,8 @@ import {
 } from 'lucide-react';
 import { getAdminOrders, updateOrderStatus } from '@/api/orders.api';
 import { Skeleton } from '@/components/ui/Skeleton';
+import { useI18n } from '@/i18n/use-i18n.hook';
+import { usePageMeta } from '@/hooks/usePageMeta';
 import type { Order, OrderStatus } from '@/types/order.types';
 import { ORDER_STATUSES } from '@/types/order.types';
 import type { PaginatedData } from '@/types/product.types';
@@ -72,37 +74,38 @@ const PAGE_SIZE = 10;
 // ---------------------------------------------------------------------------
 
 type StatusConfig = {
-  label: string;
+  labelKey: string;
   classes: string;
   icon: React.ReactNode;
 };
 
 const STATUS_STYLES: Record<OrderStatus, StatusConfig> = {
   PENDING: {
-    label: 'Pending',
+    labelKey: 'admin.orders.status.pending',
     icon: <Clock size={11} />,
     classes: 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400',
   },
   DELIVERED: {
-    label: 'Delivered',
+    labelKey: 'admin.orders.status.delivered',
     icon: <CheckCircle size={11} />,
     classes: 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400',
   },
   CANCELLED: {
-    label: 'Cancelled',
+    labelKey: 'admin.orders.status.cancelled',
     icon: <XCircle size={11} />,
     classes: 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400',
   },
 };
 
 function StatusBadge({ status }: { status: OrderStatus }) {
+  const { translate } = useI18n();
   const cfg = STATUS_STYLES[status] ?? STATUS_STYLES.PENDING;
   return (
     <span
       className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${cfg.classes}`}
     >
       {cfg.icon}
-      {cfg.label}
+      {translate(cfg.labelKey)}
     </span>
   );
 }
@@ -122,6 +125,7 @@ function OrderDetailModal({
   order: Order;
   onClose: () => void;
 }) {
+  const { translate } = useI18n();
   useEffect(() => {
     document.body.style.overflow = 'hidden';
     return () => {
@@ -155,7 +159,7 @@ function OrderDetailModal({
               Order #{order._id.slice(-8).toUpperCase()}
             </h2>
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-              {order.customer.username} · {order.customer.email} ·{' '}
+              {order.customer?.username ?? '—'} · {order.customer?.email ?? ''} ·{' '}
               {new Date(order.createdAt).toLocaleDateString('en-US', {
                 year: 'numeric',
                 month: 'short',
@@ -194,11 +198,11 @@ function OrderDetailModal({
                   {item.product.name}
                 </p>
                 <p className="text-xs text-gray-400 mt-0.5">
-                  Qty: {item.quantity} &nbsp;·&nbsp; ${item.product.price.toFixed(2)} each
+                  {translate('admin.orders.modal.qty')} {item.quantity} &nbsp;·&nbsp; ${(item.product?.price ?? 0).toFixed(2)}
                 </p>
               </div>
               <span className="text-sm font-semibold text-gray-900 dark:text-white flex-shrink-0">
-                ${(item.product.price * item.quantity).toFixed(2)}
+                ${((item.product?.price ?? 0) * item.quantity).toFixed(2)}
               </span>
             </div>
           ))}
@@ -206,25 +210,25 @@ function OrderDetailModal({
 
         {/* Footer — pricing + payment */}
         <div className="px-6 py-4 border-t border-gray-200 dark:border-gray-700 space-y-1.5 flex-shrink-0">
-          {order.orderPrice !== order.discountedOrderPrice && (
+          {(order.orderPrice ?? 0) !== (order.discountedOrderPrice ?? 0) && (
             <div className="flex justify-between text-sm text-gray-500 dark:text-gray-400">
-              <span>Subtotal</span>
-              <span>${order.orderPrice.toFixed(2)}</span>
+              <span>{translate('admin.orders.modal.subtotal')}</span>
+              <span>${(order.orderPrice ?? 0).toFixed(2)}</span>
             </div>
           )}
           {order.coupon && (
             <div className="flex justify-between text-sm text-green-600 dark:text-green-400">
               <span>Coupon ({order.coupon.couponCode})</span>
-              <span>−${(order.orderPrice - order.discountedOrderPrice).toFixed(2)}</span>
+              <span>−${((order.orderPrice ?? 0) - (order.discountedOrderPrice ?? 0)).toFixed(2)}</span>
             </div>
           )}
           <div className="flex justify-between text-base font-bold text-gray-900 dark:text-white pt-1 border-t border-gray-100 dark:border-gray-700">
-            <span>Total</span>
-            <span>${order.discountedOrderPrice.toFixed(2)}</span>
+            <span>{translate('admin.orders.modal.total')}</span>
+            <span>${(order.discountedOrderPrice ?? order.orderPrice ?? 0).toFixed(2)}</span>
           </div>
           <div className="flex items-center justify-between pt-2">
             <span className="text-xs text-gray-400">
-              {order.paymentProvider} · {order.isPaymentDone ? 'Paid' : 'Payment pending'}
+              {order.paymentProvider} · {order.isPaymentDone ? translate('admin.orders.modal.paid') : translate('admin.orders.modal.paymentPending')}
             </span>
             <StatusBadge status={order.status} />
           </div>
@@ -243,6 +247,8 @@ function OrderDetailModal({
  * and an order detail modal.
  */
 export default function AdminOrdersPage() {
+  usePageMeta('Orders', 'Manage and track all customer orders in ShopHub.');
+  const { translate } = useI18n();
   const [orders, setOrders] = useState<Order[]>([]);
   const [pagination, setPagination] = useState<Omit<
     PaginatedData<unknown>,
@@ -330,10 +336,10 @@ export default function AdminOrdersPage() {
       {/* Page heading */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div>
-          <h1 className="text-xl font-bold text-gray-900 dark:text-white">Orders</h1>
+          <h1 className="text-xl font-bold text-gray-900 dark:text-white">{translate('admin.orders.title')}</h1>
           {pagination && (
             <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
-              {totalItems} total orders
+              {translate('admin.orders.totalOrders').replace('{{count}}', String(totalItems))}
             </p>
           )}
         </div>
@@ -348,10 +354,10 @@ export default function AdminOrdersPage() {
           }
           className="px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
         >
-          <option value="">All statuses</option>
+          <option value="">{translate('admin.orders.allStatuses')}</option>
           {ORDER_STATUSES.map((s) => (
             <option key={s} value={s}>
-              {STATUS_STYLES[s].label}
+              {translate(STATUS_STYLES[s].labelKey)}
             </option>
           ))}
         </select>
@@ -368,7 +374,7 @@ export default function AdminOrdersPage() {
             className="flex items-center gap-1.5 text-xs font-medium text-red-600 dark:text-red-400 hover:underline"
           >
             <RefreshCw size={13} />
-            Retry
+            {translate('common.retry')}
           </button>
         </div>
       )}
@@ -380,25 +386,25 @@ export default function AdminOrdersPage() {
             <thead>
               <tr className="border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-750">
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
-                  Order ID
+                  {translate('admin.orders.table.orderId')}
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide hidden sm:table-cell">
-                  Customer
+                  {translate('admin.orders.table.customer')}
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide hidden md:table-cell">
-                  Items
+                  {translate('admin.orders.table.items')}
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
-                  Total
+                  {translate('admin.orders.table.total')}
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
-                  Status
+                  {translate('admin.orders.table.status')}
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide hidden lg:table-cell">
-                  Date
+                  {translate('admin.orders.table.date')}
                 </th>
                 <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
-                  Actions
+                  {translate('admin.orders.table.actions')}
                 </th>
               </tr>
             </thead>
@@ -449,10 +455,10 @@ export default function AdminOrdersPage() {
                       {/* Customer */}
                       <td className="px-4 py-3 hidden sm:table-cell">
                         <p className="text-xs font-medium text-gray-900 dark:text-white line-clamp-1">
-                          {order.customer.username}
+                          {order.customer?.username ?? '—'}
                         </p>
                         <p className="text-xs text-gray-400 line-clamp-1">
-                          {order.customer.email}
+                          {order.customer?.email ?? ''}
                         </p>
                       </td>
 
@@ -465,7 +471,7 @@ export default function AdminOrdersPage() {
 
                       {/* Total */}
                       <td className="px-4 py-3 font-semibold text-gray-900 dark:text-white">
-                        ${order.discountedOrderPrice.toFixed(2)}
+                        ${(order.discountedOrderPrice ?? order.orderPrice ?? 0).toFixed(2)}
                       </td>
 
                       {/* Status badge */}
@@ -505,7 +511,7 @@ export default function AdminOrdersPage() {
                           >
                             {ORDER_STATUSES.map((s) => (
                               <option key={s} value={s}>
-                                {STATUS_STYLES[s].label}
+                                {translate(STATUS_STYLES[s].labelKey)}
                               </option>
                             ))}
                           </select>
@@ -529,7 +535,7 @@ export default function AdminOrdersPage() {
                 <tr>
                   <td colSpan={7} className="text-center py-16 text-gray-400 dark:text-gray-500">
                     <ShoppingBag size={32} className="mx-auto mb-3 opacity-40" />
-                    <p className="text-sm">No orders found.</p>
+                    <p className="text-sm">{translate('admin.orders.empty')}</p>
                   </td>
                 </tr>
               )}
@@ -541,7 +547,10 @@ export default function AdminOrdersPage() {
         {pagination && totalPages > 1 && (
           <div className="flex items-center justify-between px-4 py-3 border-t border-gray-200 dark:border-gray-700">
             <p className="text-sm text-gray-500 dark:text-gray-400">
-              Showing {startItem}–{endItem} of {totalItems}
+              {translate('admin.orders.showing')
+                .replace('{{from}}', String(startItem))
+                .replace('{{to}}', String(endItem))
+                .replace('{{total}}', String(totalItems))}
             </p>
 
             <div className="flex items-center gap-1">

@@ -241,8 +241,10 @@ export const createApiInstance = (baseURL: string) => {
         isRefreshing = true;
 
         try {
+          // Use the same base URL as this instance so mock mode (relative /api/v1)
+          // and real mode (absolute VITE_LOGIN_AUTH_URL) both work correctly.
           const { data } = await axios.post(
-            `${import.meta.env.VITE_API_URL}/users/refresh-token`,
+            `${baseURL}/users/refresh-token`,
             {},
             { withCredentials: true },
           );
@@ -255,9 +257,34 @@ export const createApiInstance = (baseURL: string) => {
           return api(originalRequest);
         } catch (refreshError) {
           processQueue(refreshError, null);
-          useAuthStore.getState().logout();
-          // Hard navigation resets all in-memory state cleanly.
-          window.location.href = '/login';
+
+          // Race-condition guard: a fresh login (e.g. social auth) may have
+          // completed while this refresh was in-flight. If the cookie token
+          // is now different from the one on the original failing request, a
+          // new valid session exists — destroying it would kick the user back
+          // to /login immediately after they just signed in successfully.
+          //
+          // Compare the current cookie token to the Authorization header of
+          // the original 401 request. If they differ, a new setAuth() was
+          // called → skip logout and redirect.
+          const currentCookieToken = cookieService.getToken() ?? null;
+          const originalAuthHeader = originalRequest?.headers?.['Authorization'];
+          const originalToken =
+            typeof originalAuthHeader === 'string'
+              ? originalAuthHeader.replace(/^Bearer\s+/i, '')
+              : null;
+          const freshLoginOccurred =
+            currentCookieToken !== null && currentCookieToken !== originalToken;
+
+          if (!freshLoginOccurred) {
+            useAuthStore.getState().logout();
+            // Defer the hard navigation to the next macrotask so React can
+            // finish its current render/commit cycle before the page unloads.
+            // Navigating synchronously while React is mid-render tears down
+            // the React dispatcher, causing useContext to throw.
+            setTimeout(() => { window.location.href = '/login'; }, 0);
+          }
+
           return Promise.reject(refreshError);
         } finally {
           isRefreshing = false;
@@ -275,13 +302,15 @@ export const createApiInstance = (baseURL: string) => {
         const normalized = normalizeApiError(error);
         const status = error.response?.status;
 
-        // Only push to the global error store for infrastructure errors.
-        // Validation (400/422) and auth (401 handled above, 403 may go to
-        // whitelist guard) are handled by the calling component or guard.
+        // Push to the global error store for network errors, server errors,
+        // and unhandled 4xx codes. Excluded:
+        //   400 / 422 → validation (components handle with field messages)
+        //   401       → already handled by the silent-refresh block above
+        // All other 4xx (403, 404, 405, 409, 429 …) go to the global handler.
         if (
           normalized.type === 'network' ||
           normalized.type === 'server'  ||
-          status === 403
+          (status !== undefined && status >= 400 && status < 500 && status !== 400 && status !== 401 && status !== 422)
         ) {
           handleApiError(error, normalized, {
             onRetry: () => {

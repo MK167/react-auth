@@ -36,6 +36,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { ArrowLeft, Upload, AlertCircle } from 'lucide-react';
 import { productSchema, type ProductFormValues } from '@/schemas/product.schema';
 import { createProduct, getCategories } from '@/api/products.api';
+import { usePageMeta } from '@/hooks/usePageMeta';
 import type { ProductCategory } from '@/types/product.types';
 
 // ---------------------------------------------------------------------------
@@ -46,6 +47,7 @@ import type { ProductCategory } from '@/types/product.types';
  * Admin form page for creating a new product.
  */
 export default function CreateProductPage() {
+  usePageMeta('Create Product', 'Add a new product to the ShopHub catalog.');
   const navigate = useNavigate();
   const [categories, setCategories] = useState<ProductCategory[]>([]);
   const [serverError, setServerError] = useState<string | null>(null);

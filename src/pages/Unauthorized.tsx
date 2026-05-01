@@ -17,12 +17,14 @@
 import { useNavigate } from 'react-router-dom';
 import { ShieldOff, ArrowLeft } from 'lucide-react';
 import { useAuthStore } from '@/store/auth.store';
+import { usePageMeta } from '@/hooks/usePageMeta';
 
 /**
  * Full-page 403 error screen shown when the user's role does not permit
  * access to the requested route.
  */
 export default function Unauthorized() {
+  usePageMeta('Access Denied');
   const navigate = useNavigate();
   const { user } = useAuthStore();
 

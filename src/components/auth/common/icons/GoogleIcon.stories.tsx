@@ -1,0 +1,13 @@
+import type { Meta, StoryObj } from '@storybook/react-vite';
+import { GoogleIcon } from './GoogleIcon';
+
+const meta = {
+  title: 'Auth/Icons/GoogleIcon',
+  component: GoogleIcon,
+  tags: ['autodocs'],
+} satisfies Meta<typeof GoogleIcon>;
+
+export default meta;
+type Story = StoryObj<typeof meta>;
+
+export const Default: Story = {};

@@ -23,7 +23,8 @@ import { useWishlistStore } from '@/store/wishlist.store';
 import { ProductCardSkeleton } from '@/components/ui/Skeleton';
 import { toProductSlugId } from '@/utils/slug';
 import { prefetchProductDetail } from '@/utils/prefetch';
-import { useI18n } from '@/i18n/i18n.context';
+import { useI18n } from '@/i18n/use-i18n.hook';
+import { usePageMeta } from '@/hooks/usePageMeta';
 import type { Product } from '@/types/product.types';
 
 // ---------------------------------------------------------------------------
@@ -32,12 +33,20 @@ import type { Product } from '@/types/product.types';
 
 interface ProductCardProps {
   product: Product;
+  /**
+   * 0-based position in the grid.
+   * The first card (index 0) is the Largest Contentful Paint element on the
+   * home page — its image must NOT be lazy-loaded and should carry
+   * fetchpriority="high" so the browser fetches it immediately.
+   */
+  index: number;
   onAddToCart: (product: Product) => void;
   onNavigate: (slugId: string) => void;
 }
 
-function ProductCard({ product, onAddToCart, onNavigate }: ProductCardProps) {
+function ProductCard({ product, index, onAddToCart, onNavigate }: ProductCardProps) {
   const { hasItem, toggleItem } = useWishlistStore();
+  const { translate } = useI18n();
   const isWishlisted = hasItem(product._id);
   const slugId = toProductSlugId(product.name, product._id);
 
@@ -56,18 +65,22 @@ function ProductCard({ product, onAddToCart, onNavigate }: ProductCardProps) {
           <img
             src={product.mainImage.url}
             alt={product.name}
-            loading="lazy"
+            loading={index === 0 ? 'eager' : 'lazy'}
+            fetchPriority={index === 0 ? 'high' : undefined}
+            decoding="async"
+            width={index === 0 ? 400 : undefined}
+            height={index === 0 ? 208 : undefined}
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center text-gray-300 dark:text-gray-600 text-sm">
-            No image
+            {translate('product.noImage')}
           </div>
         )}
         {product.stock === 0 && (
           <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
             <span className="bg-white text-gray-800 text-xs font-semibold px-3 py-1 rounded-full">
-              Out of stock
+              {translate('product.outOfStock')}
             </span>
           </div>
         )}
@@ -111,7 +124,8 @@ function ProductCard({ product, onAddToCart, onNavigate }: ProductCardProps) {
               className={i < 4 ? 'text-amber-400 fill-amber-400' : 'text-gray-300 dark:text-gray-600'}
             />
           ))}
-          <span className="text-xs text-gray-400 ml-1">(4.0)</span>
+          {/* text-gray-500 ensures ≥ 4.5:1 contrast ratio on white (WCAG AA) */}
+          <span className="text-xs text-gray-500 ml-1">(4.0)</span>
         </div>
 
         {/* Price + cart button */}
@@ -127,7 +141,7 @@ function ProductCard({ product, onAddToCart, onNavigate }: ProductCardProps) {
             className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-200 dark:disabled:bg-gray-700 disabled:cursor-not-allowed text-white disabled:text-gray-400 dark:disabled:text-gray-500 text-xs font-medium rounded-lg transition-colors"
           >
             <ShoppingCart size={13} />
-            Add
+            {translate('product.add')}
           </button>
         </div>
       </div>
@@ -143,8 +157,9 @@ function ProductCard({ product, onAddToCart, onNavigate }: ProductCardProps) {
  * User-facing home page with hero banner and featured product grid.
  */
 export default function HomePage() {
+  usePageMeta('Home', 'Discover thousands of products with fast shipping, easy returns, and secure checkout at ShopHub.');
   const navigate = useNavigate();
-  const { t } = useI18n();
+  const { translate } = useI18n();
   const addItem = useCartStore((s) => s.addItem);
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
@@ -171,13 +186,13 @@ export default function HomePage() {
 
         <div className="relative max-w-xl">
           <span className="inline-block text-xs font-semibold uppercase tracking-widest text-indigo-200 mb-4">
-            {t('home.hero.badge')}
+            {translate('home.hero.badge')}
           </span>
           <h1 className="text-3xl md:text-5xl font-extrabold leading-tight mb-4">
-            {t('home.hero.title')}
+            {translate('home.hero.title')}
           </h1>
           <p className="text-indigo-100 text-base md:text-lg mb-8 leading-relaxed">
-            {t('home.hero.subtitle')}
+            {translate('home.hero.subtitle')}
           </p>
           <div className="flex flex-wrap gap-3">
             <button
@@ -185,7 +200,7 @@ export default function HomePage() {
               onClick={() => navigate('/products')}
               className="flex items-center gap-2 px-6 py-3 bg-white text-indigo-700 font-semibold rounded-xl hover:bg-indigo-50 transition-colors text-sm"
             >
-              {t('home.hero.shopNow')}
+              {translate('home.hero.shopNow')}
               <ArrowRight size={16} />
             </button>
             <button
@@ -193,7 +208,7 @@ export default function HomePage() {
               onClick={() => navigate('/orders')}
               className="flex items-center gap-2 px-6 py-3 border-2 border-white/40 text-white font-semibold rounded-xl hover:bg-white/10 transition-colors text-sm"
             >
-              {t('home.hero.myOrders')}
+              {translate('home.hero.myOrders')}
             </button>
           </div>
         </div>
@@ -205,14 +220,14 @@ export default function HomePage() {
       <section aria-label="Featured products">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-xl font-bold text-gray-900 dark:text-white">
-            {t('home.featured.title')}
+            {translate('home.featured.title')}
           </h2>
           <button
             type="button"
             onClick={() => navigate('/products')}
             className="flex items-center gap-1 text-sm text-indigo-600 dark:text-indigo-400 font-medium hover:underline"
           >
-            {t('home.featured.viewAll')}
+            {translate('home.featured.viewAll')}
             <ArrowRight size={14} />
           </button>
         </div>
@@ -220,10 +235,11 @@ export default function HomePage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
           {loading
             ? Array.from({ length: 8 }).map((_, i) => <ProductCardSkeleton key={i} />)
-            : products.map((product) => (
+            : products.map((product, i) => (
                 <ProductCard
                   key={product._id}
                   product={product}
+                  index={i}
                   onAddToCart={(p) => addItem(p, 1)}
                   onNavigate={(slugId) => navigate(`/products/${slugId}`)}
                 />
@@ -232,7 +248,7 @@ export default function HomePage() {
 
         {!loading && products.length === 0 && (
           <div className="text-center py-16 text-gray-400 dark:text-gray-500">
-            <p className="text-sm">{t('home.empty')}</p>
+            <p className="text-sm">{translate('home.empty')}</p>
           </div>
         )}
       </section>
@@ -243,9 +259,9 @@ export default function HomePage() {
         className="mt-16 grid grid-cols-1 sm:grid-cols-3 gap-6"
       >
         {[
-          { icon: '🚚', title: t('home.features.shipping'), desc: t('home.features.shippingDesc') },
-          { icon: '↩️', title: t('home.features.returns'),  desc: t('home.features.returnsDesc') },
-          { icon: '🔒', title: t('home.features.secure'),   desc: t('home.features.secureDesc') },
+          { icon: '🚚', title: translate('home.features.shipping'), desc: translate('home.features.shippingDesc') },
+          { icon: '↩️', title: translate('home.features.returns'),  desc: translate('home.features.returnsDesc') },
+          { icon: '🔒', title: translate('home.features.secure'),   desc: translate('home.features.secureDesc') },
         ].map((feature) => (
           <div
             key={feature.title}

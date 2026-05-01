@@ -5,7 +5,7 @@
     "useDefineForClassFields": true,
     "lib": ["ES2023", "DOM", "DOM.Iterable"],
     "module": "ESNext",
-    "types": ["vite/client"],
+    "types": ["vite/client", "vitest/globals"],
     "skipLibCheck": true,
 
     /* Alias */
@@ -24,6 +24,12 @@
       "@layouts/*": ["src/layouts/*"],
       "@schemas/*": ["src/schemas/*"],
       "@routes/*": ["src/routes/*"],
+      "@stories/*": ["src/stories/*"],
+      "@themes/*": ["src/themes/*"],
+      "@features/*": ["src/features/*"],
+      "@config/*": ["src/config/*"],
+      "@core/*": ["src/core/*"],
+      "@environments/*": ["src/environments/*"],
     },
 
     /* Bundler mode */

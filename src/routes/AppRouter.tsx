@@ -54,6 +54,9 @@ import AdminLayout from '@/layouts/AdminLayout';
 import UserLayout from '@/layouts/UserLayout';
 import GlobalLoader from '@/components/common/GlobalLoader';
 import { ErrorBoundary } from '@/core/errors/ErrorBoundary';
+// HomePage is the LCP page — imported statically so the browser needs no
+// extra chunk download before rendering the featured-products grid.
+import HomePage from '@/pages/user/HomePage';
 
 // ---------------------------------------------------------------------------
 // Lazy-loaded pages
@@ -76,12 +79,13 @@ const EditProductPage     = lazy(() => import('@/pages/admin/EditProductPage'));
 const CategoriesPage      = lazy(() => import('@/pages/admin/CategoriesPage'));
 const AdminOrdersPage     = lazy(() => import('@/pages/admin/AdminOrdersPage'));
 const ErrorPlaygroundPage = lazy(() => import('@/pages/admin/ErrorPlaygroundPage'));
+const RealtimeChatPage    = lazy(() => import('@/pages/admin/RealtimeChatPage'));
 
-// User pages
-const HomePage         = lazy(() => import('@/pages/user/HomePage'));
+// User pages (HomePage excluded — statically imported above)
 const ProductsPage     = lazy(() => import('@/pages/user/ProductsPage'));
 const ProductDetailPage = lazy(() => import('@/pages/user/ProductDetailPage'));
 const CartPage         = lazy(() => import('@/pages/user/CartPage'));
+const WishlistPage     = lazy(() => import('@/pages/user/WishlistPage'));
 const CheckoutPage     = lazy(() => import('@/pages/user/CheckoutPage'));
 const OrdersPage       = lazy(() => import('@/pages/user/OrdersPage'));
 const ProfilePage      = lazy(() => import('@/pages/user/ProfilePage'));
@@ -124,10 +128,11 @@ export default function AppRouter() {
       {/* ------------------------------------------------------------------ */}
       <Route element={<ErrorBoundary resetKey={location.pathname}><UserLayout /></ErrorBoundary>}>
         {/* Public storefront — no authentication required */}
-        <Route path="/"                element={<Page component={HomePage} />} />
+        <Route path="/"                element={<HomePage />} />
         <Route path="/products"        element={<Page component={ProductsPage} />} />
         <Route path="/products/:slugId" element={<Page component={ProductDetailPage} />} />
-        <Route path="/cart"            element={<Page component={CartPage} />} />
+        <Route path="/cart"             element={<Page component={CartPage} />} />
+        <Route path="/wishlist"         element={<Page component={WishlistPage} />} />
 
         {/* Protected storefront — authentication required */}
         <Route element={<ProtectedRoute />}>
@@ -182,6 +187,12 @@ export default function AppRouter() {
                * WhitelistGuard already checks the role; FeatureGuard adds the
                * flag check so the route is invisible to ADMINs without the flag.
                */}
+              <Route element={<FeatureGuard featureFlag="realtimeChat" />}>
+                <Route
+                  path="/admin/realtime-chat"
+                  element={<Page component={RealtimeChatPage} />}
+                />
+              </Route>
               <Route element={<FeatureGuard featureFlag="errorPlayground" />}>
                 <Route
                   path="/admin/error-playground"
