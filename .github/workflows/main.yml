@@ -60,10 +60,34 @@ jobs:
 
       - run: npm ci
 
+      - name: Get current version (before release)
+        id: version_before
+        run: |
+          echo "version=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
       - name: Run Semantic Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npx semantic-release
+      - name: Get new version (after release)
+        id: version_after
+        run: |
+          echo "version=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
+      - name: Release Summary
+        run: |
+          echo "## 🚀 Release Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| | |" >> $GITHUB_STEP_SUMMARY
+          echo "|---|---|" >> $GITHUB_STEP_SUMMARY
+          echo "| Old Version | ${{ steps.version_before.outputs.version }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| New Version | ${{ steps.version_after.outputs.version }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ -f CHANGELOG.md ]; then
+            echo "### 📜 Changelog" >> $GITHUB_STEP_SUMMARY
+            tail -n 20 CHANGELOG.md >> $GITHUB_STEP_SUMMARY
+          else
+            echo "_No changelog file found_" >> $GITHUB_STEP_SUMMARY
+          fi
 
   # DOCKER
   docker:
@@ -136,3 +160,5 @@ jobs:
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./dist
+
+    
