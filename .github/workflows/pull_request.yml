@@ -3,6 +3,9 @@ name: PR Pipeline
 on:
   pull_request:
     branches: [main, develop]
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
 
