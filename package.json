@@ -7,7 +7,7 @@
     "dev": "vite",
     "dev:mock": "node mock-server/server.cjs",
     "dev:all": "concurrently -n \"vite,mock\" -c \"cyan,yellow\" \"npm run dev\" \"npm run dev:mock\"",
-    "build": "tsc -b && vite build",
+    "build": "tsc -b && vite build && cp dist/index.html dist/404.html",
     "lint": "eslint .",
     "preview": "vite preview",
     "prepare": "husky",
