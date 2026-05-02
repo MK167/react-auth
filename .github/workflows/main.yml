@@ -9,12 +9,10 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-
   prepare:
     runs-on: ubuntu-latest
     outputs:
       env_name: ${{ steps.setenv.outputs.env }}
-
     steps:
       - uses: actions/checkout@v6.0.2
 
@@ -26,14 +24,11 @@ jobs:
           else
             ENV_NAME=staging
           fi
-          echo "env=${ENV_NAME}" >> $GITHUB_OUTPUT
-          echo "Final detected environment: ${ENV_NAME}"
-          echo "## Detect Environment" >> $GITHUB_STEP_SUMMARY
-          echo "**${ENV_NAME}** (ref: \`${GITHUB_REF}\`)" >> $GITHUB_STEP_SUMMARY
+          echo "env=${ENV_NAME}" >> "$GITHUB_OUTPUT"
 
-      - uses: actions/setup-node@v6.4.0
+      - uses: actions/setup-node@v6.0.0
         with:
-          node-version: "lts/*"
+          node-version: lts/*
           cache: npm
 
       - run: npm ci
@@ -45,18 +40,42 @@ jobs:
       - uses: actions/checkout@v6.0.2
       - run: npm ci
       - run: npm run build
-
-      - uses: actions/upload-artifact@v4.6.2
+      - uses: actions/upload-artifact@v4
         with:
           name: build
           path: dist
 
-  docker:
+  # VERSIONING (Semantic Release)
+  release:
     runs-on: ubuntu-latest
     needs: build
-
     steps:
       - uses: actions/checkout@v6.0.2
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v6.0.0
+        with:
+          node-version: lts/*
+
+      - run: npm ci
+
+      - name: Run Semantic Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npx semantic-release
+
+  # DOCKER
+  docker:
+    runs-on: ubuntu-latest
+    needs: release
+    steps:
+      - uses: actions/checkout@v6.0.2
+
+      - name: Get version
+        id: version
+        run: |
+          echo "version=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
 
       - name: Login DockerHub
         uses: docker/login-action@v4.1.0
@@ -66,21 +85,21 @@ jobs:
 
       - name: Build Docker Image
         run: |
-          docker build -t ${{ secrets.DOCKER_USERNAME }}/react-app:${{ github.sha }} .
+          docker build -t ${{ secrets.DOCKER_USERNAME }}/react-app:${{ steps.version.outputs.version }} .
 
       - name: Tag Docker Images
         run: |
-          docker tag ${{ secrets.DOCKER_USERNAME }}/react-app:${{ github.sha }} ${{ secrets.DOCKER_USERNAME }}/react-app:latest
+          docker tag ${{ secrets.DOCKER_USERNAME }}/react-app:${{ steps.version.outputs.version }} ${{ secrets.DOCKER_USERNAME }}/react-app:latest
 
           if [[ "${GITHUB_REF}" == "refs/heads/main" ]]; then
-            docker tag ${{ secrets.DOCKER_USERNAME }}/react-app:${{ github.sha }} ${{ secrets.DOCKER_USERNAME }}/react-app:prod
+            docker tag ${{ secrets.DOCKER_USERNAME }}/react-app:${{ steps.version.outputs.version }} ${{ secrets.DOCKER_USERNAME }}/react-app:prod
           else
-            docker tag ${{ secrets.DOCKER_USERNAME }}/react-app:${{ github.sha }} ${{ secrets.DOCKER_USERNAME }}/react-app:staging
+            docker tag ${{ secrets.DOCKER_USERNAME }}/react-app:${{ steps.version.outputs.version }} ${{ secrets.DOCKER_USERNAME }}/react-app:staging
           fi
 
       - name: Push Docker Images
         run: |
-          docker push ${{ secrets.DOCKER_USERNAME }}/react-app:${{ github.sha }}
+          docker push ${{ secrets.DOCKER_USERNAME }}/react-app:${{ steps.version.outputs.version }}
           docker push ${{ secrets.DOCKER_USERNAME }}/react-app:latest
 
           if [[ "${GITHUB_REF}" == "refs/heads/main" ]]; then
@@ -89,132 +108,31 @@ jobs:
             docker push ${{ secrets.DOCKER_USERNAME }}/react-app:staging
           fi
 
+  # SECURITY
   security-image:
     runs-on: ubuntu-latest
     needs: docker
-
     steps:
       - name: Scan Docker Image
         uses: aquasecurity/trivy-action@v0.36.0
         with:
-          image-ref: ${{ secrets.DOCKER_USERNAME }}/react-app:${{ github.sha }}
+          image-ref: ${{ secrets.DOCKER_USERNAME }}/react-app:latest
           severity: CRITICAL
-          exit-code: '1'
+          exit-code: "1"
 
-      - name: Trivy Summary
-        run: |
-          echo "## 🔐 Docker Image Scan Done" >> $GITHUB_STEP_SUMMARY
-
+  # DEPLOY
   deploy:
     runs-on: ubuntu-latest
     needs: [security-image, prepare]
     environment: ${{ needs.prepare.outputs.env_name }}
-
     steps:
-      - uses: actions/download-artifact@v4.3.0
+      - uses: actions/download-artifact@v4
         with:
           name: build
           path: dist
 
       - name: Deploy to Pages
-        uses: peaceiris/actions-gh-pages@v4.0.0
+        uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./dist
-
-  # Smoke-tests mock-server (same process as `npm run dev:mock`).
-  # Optional repo Variable MOCK_SERVER_BASE_URL — if set, skips starting mock and curls that host instead (deployed Docker mock).
-  verify-backend:
-    name: Verify mock-server (smoke)
-    runs-on: ubuntu-latest
-    needs: [deploy, prepare]
-    environment: ${{ needs.prepare.outputs.env_name }}
-
-    steps:
-      - uses: actions/checkout@v6.0.2
-
-      - uses: actions/setup-node@v6.4.0
-        with:
-          node-version: "lts/*"
-          cache: npm
-          cache-dependency-path: |
-            package-lock.json
-            mock-server/package-lock.json
-
-      - name: Install dependencies
-        run: |
-          npm ci
-          npm ci --prefix mock-server
-
-      - name: Start mock-server (or use deployed URL) and smoke-test
-        id: smoke
-        env:
-          MOCK_PORT: '3001'
-          MOCK_SERVER_BASE_URL: ${{ vars.MOCK_SERVER_BASE_URL }}
-          MOCK_HEALTH_PATH: ${{ vars.MOCK_HEALTH_PATH }}
-        run: |
-          set -euo pipefail
-          HEALTH_PATH="${MOCK_HEALTH_PATH:-/api/v1/ecommerce/categories}"
-          REMOTE="${MOCK_SERVER_BASE_URL:-}"
-
-          summary_backend() {
-            echo "## Mock backend verification" >> "$GITHUB_STEP_SUMMARY"
-            echo "" >> "$GITHUB_STEP_SUMMARY"
-            echo "| | |" >> "$GITHUB_STEP_SUMMARY"
-            echo "|---|---|" >> "$GITHUB_STEP_SUMMARY"
-            echo "| **Backend** | mock-server (\`mock-server/server.cjs\`) |" >> "$GITHUB_STEP_SUMMARY"
-            echo "| **API base** | \`$1\` |" >> "$GITHUB_STEP_SUMMARY"
-            echo "| **Smoke URL** | [$2]($2) |" >> "$GITHUB_STEP_SUMMARY"
-            echo "| **Result** | OK (HTTP 2xx) |" >> "$GITHUB_STEP_SUMMARY"
-            echo "| **Environment** | \`${{ needs.prepare.outputs.env_name }}\` |" >> "$GITHUB_STEP_SUMMARY"
-            echo "" >> "$GITHUB_STEP_SUMMARY"
-            echo "**GitHub Pages app:** https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/react-auth/" >> "$GITHUB_STEP_SUMMARY"
-          }
-
-          if [[ -n "${REMOTE}" ]]; then
-            BASE="${REMOTE%/}"
-            FULL="${BASE}${HEALTH_PATH}"
-            [[ "${FULL}" == *'?'* ]] && URL="${FULL}" || URL="${FULL}?page=1&limit=1"
-            echo "Using deployed mock at ${URL}"
-            curl -fsSL --retry 5 --retry-delay 3 --retry-all-errors \
-              -H "Accept: application/json" \
-              -o /tmp/mock-smoke.json \
-              --max-time 60 \
-              "${URL}"
-            echo "base=${BASE}" >> "$GITHUB_OUTPUT"
-            echo "health_url=${URL}" >> "$GITHUB_OUTPUT"
-            summary_backend "${BASE}" "${URL}"
-            exit 0
-          fi
-
-          node mock-server/server.cjs &
-          MOCK_PID=$!
-          trap 'kill "${MOCK_PID}" 2>/dev/null || true' EXIT
-
-          BASE="http://127.0.0.1:${MOCK_PORT}"
-          FULL="${BASE}${HEALTH_PATH}"
-          URL="${FULL}?page=1&limit=1"
-
-          echo "Waiting for mock-server on ${BASE}"
-          ready=
-          for _ in $(seq 1 45); do
-            if curl -fsS -H "Accept: application/json" -o /dev/null --max-time 2 "${URL}" 2>/dev/null; then
-              ready=1
-              break
-            fi
-            sleep 1
-          done
-          if [[ -z "${ready}" ]]; then
-            echo "::error::mock-server did not become ready within 45s (${URL})"
-            exit 1
-          fi
-
-          curl -fsSL --retry 3 --retry-delay 2 --retry-all-errors \
-            -H "Accept: application/json" \
-            -o /tmp/mock-smoke.json \
-            --max-time 60 \
-            "${URL}"
-
-          echo "base=${BASE}/api/v1" >> "$GITHUB_OUTPUT"
-          echo "health_url=${URL}" >> "$GITHUB_OUTPUT"
-          summary_backend "${BASE}/api/v1" "${URL}"

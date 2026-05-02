@@ -405,6 +405,14 @@ No action required — this is handled automatically by the build configuration.
 
 ---
 
+## Commits Version 
+
+feat: add login page        → MINOR (1.1.0)
+fix: fix auth bug           → PATCH (1.0.1)
+feat!: change API           → MAJOR (2.0.0)
+
+---
+
 ## License
 
 MIT
