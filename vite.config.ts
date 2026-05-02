@@ -6,6 +6,7 @@ import { resolve } from 'node:path';
 export default defineConfig(({ mode }) => {
   const isProd = mode === 'production';
 
+  const base = isProd ? '/react-auth/' : '/';
   /**
    * Mock server URL — only used in development for the dev-server proxy.
    * Must match the `mockServerUrl` in environment.ts.
@@ -13,6 +14,7 @@ export default defineConfig(({ mode }) => {
   const mockServerUrl = 'http://localhost:3001';
 
   return {
+    base,
     plugins: [react(), tsconfigPaths()],
 
     // ── Angular-style environment file replacement ─────────────────────────
