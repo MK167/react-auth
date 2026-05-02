@@ -1,3 +1,10 @@
+# [1.3.0](https://github.com/MK167/react-auth/compare/v1.2.0...v1.3.0) (2026-05-02)
+
+
+### Features
+
+* add semantic-release dependencies for automated versioning and changelog generation ([151775d](https://github.com/MK167/react-auth/commit/151775dac0a357168e7864906b4b5892af329d6f))
+
 # [1.2.0](https://github.com/MK167/react-auth/compare/v1.1.0...v1.2.0) (2026-05-02)
 
 
