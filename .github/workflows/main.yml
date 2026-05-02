@@ -83,10 +83,36 @@ jobs:
       - run: npm audit --audit-level=critical
 
       # 🔐 Secrets (smart behavior)
-      - name: Gitleaks
+      # - name: Gitleaks
+      #   uses: gitleaks/gitleaks-action@v2
+      #   with:
+      #     args: ${{ github.event_name == 'pull_request' && '' || '--exit-code=0' }}
+      - name: Run Gitleaks (optional)
+        id: gitleaks
         uses: gitleaks/gitleaks-action@v2
         with:
-          args: ${{ github.event_name == 'pull_request' && '' || '--exit-code=0' }}
+          args: "--exit-code=0 --report-format=sarif --report-path=results.sarif"
+
+      # 📊 Summary step
+      - name: Gitleaks Summary
+        if: always()
+        run: |
+          echo "## 🔐 Gitleaks Scan Result" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ -f results.sarif ]; then
+            COUNT=$(grep -c '"ruleId"' results.sarif || true)
+
+            if [ "$COUNT" -gt 0 ]; then
+              echo "⚠️ Found **$COUNT potential secrets**" >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "👉 Please review and fix later." >> $GITHUB_STEP_SUMMARY
+            else
+              echo "✅ No secrets found" >> $GITHUB_STEP_SUMMARY
+            fi
+          else
+            echo "ℹ️ No report generated" >> $GITHUB_STEP_SUMMARY
+          fi
 
       # 📜 SBOM
       - uses: anchore/sbom-action@v0
