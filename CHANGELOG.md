@@ -1,3 +1,10 @@
+# [1.1.0](https://github.com/MK167/react-auth/compare/v1.0.0...v1.1.0) (2026-05-02)
+
+
+### Features
+
+* update Dockerfile to use latest ([5ed21b3](https://github.com/MK167/react-auth/commit/5ed21b33ecb3e0babfda5c0290e1fb5290ee9f09))
+
 # 1.0.0 (2026-05-02)
 
 
