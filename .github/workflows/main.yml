@@ -64,11 +64,30 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
-      - name: Build Image
-        run: docker build -t ${{ secrets.DOCKER_USERNAME }}/react-app:${{ github.sha }} .
+      - name: Build Docker Image
+        run: |
+          docker build -t ${{ secrets.DOCKER_USERNAME }}/react-app:${{ github.sha }} .
 
-      - name: Push Image
-        run: docker push ${{ secrets.DOCKER_USERNAME }}/react-app:${{ github.sha }}
+      - name: Tag Docker Images
+        run: |
+          docker tag ${{ secrets.DOCKER_USERNAME }}/react-app:${{ github.sha }} ${{ secrets.DOCKER_USERNAME }}/react-app:latest
+
+          if [[ "${GITHUB_REF}" == "refs/heads/main" ]]; then
+            docker tag ${{ secrets.DOCKER_USERNAME }}/react-app:${{ github.sha }} ${{ secrets.DOCKER_USERNAME }}/react-app:prod
+          else
+            docker tag ${{ secrets.DOCKER_USERNAME }}/react-app:${{ github.sha }} ${{ secrets.DOCKER_USERNAME }}/react-app:staging
+          fi
+
+      - name: Push Docker Images
+        run: |
+          docker push ${{ secrets.DOCKER_USERNAME }}/react-app:${{ github.sha }}
+          docker push ${{ secrets.DOCKER_USERNAME }}/react-app:latest
+
+          if [[ "${GITHUB_REF}" == "refs/heads/main" ]]; then
+            docker push ${{ secrets.DOCKER_USERNAME }}/react-app:prod
+          else
+            docker push ${{ secrets.DOCKER_USERNAME }}/react-app:staging
+          fi
 
   security-image:
     runs-on: ubuntu-latest
