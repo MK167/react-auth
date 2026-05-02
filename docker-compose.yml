@@ -1,0 +1,26 @@
+# Production-style UI + mock API on one host (nginx proxies /api/v1 and /content → mock).
+#
+# Build with mock profile; open http://localhost:8080/react-auth/
+#
+# For a plain Docker image without mock, build the Dockerfile with no build-arg
+# and replace default.conf if you do not need the proxy.
+
+services:
+  mock:
+    build:
+      context: .
+      dockerfile: Dockerfile.mock
+    expose:
+      - "3001"
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        VITE_BUILD_PROFILE: docker-mock
+        NGINX_TEMPLATE: docker
+    ports:
+      - "8080:80"
+    depends_on:
+      - mock

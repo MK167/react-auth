@@ -12,11 +12,17 @@ RUN npm install --force
 
 COPY . .
 
+# Empty = default prod env (real API). docker-compose sets docker-mock → nginx + mock backend.
+ARG VITE_BUILD_PROFILE=
+ENV VITE_BUILD_PROFILE=$VITE_BUILD_PROFILE
+
 RUN npm run build
 
-# Production stage
+# Production stage — `static` = SPA only; `docker` = proxy /api/v1 + /content to mock (docker-compose)
 FROM nginx:latest
 
+ARG NGINX_TEMPLATE=static
+COPY deploy/nginx.${NGINX_TEMPLATE}.conf /etc/nginx/conf.d/default.conf
 COPY --from=builder /app/dist /usr/share/nginx/html
 
 EXPOSE 80
