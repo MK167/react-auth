@@ -1,3 +1,10 @@
+# [1.2.0](https://github.com/MK167/react-auth/compare/v1.1.0...v1.2.0) (2026-05-02)
+
+
+### Features
+
+* update GitHub Actions workflow to improve version handling and node setup ([4aa2e5b](https://github.com/MK167/react-auth/commit/4aa2e5b955e47c989b1012879841a5be0a5689b5))
+
 # [1.1.0](https://github.com/MK167/react-auth/compare/v1.0.0...v1.1.0) (2026-05-02)
 
 
