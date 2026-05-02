@@ -102,3 +102,100 @@ jobs:
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./dist
+
+  # Smoke-tests mock-server (same process as `npm run dev:mock`).
+  # Optional repo Variable MOCK_SERVER_BASE_URL — if set, skips starting mock and curls that host instead (deployed Docker mock).
+  verify-backend:
+    name: Verify mock-server (smoke)
+    runs-on: ubuntu-latest
+    needs: [deploy, prepare]
+    environment: ${{ needs.prepare.outputs.env_name }}
+
+    steps:
+      - uses: actions/checkout@v6.0.2
+
+      - uses: actions/setup-node@v6.4.0
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            mock-server/package-lock.json
+
+      - name: Install dependencies
+        run: |
+          npm ci
+          npm ci --prefix mock-server
+
+      - name: Start mock-server (or use deployed URL) and smoke-test
+        id: smoke
+        env:
+          MOCK_PORT: '3001'
+          MOCK_SERVER_BASE_URL: ${{ vars.MOCK_SERVER_BASE_URL }}
+          MOCK_HEALTH_PATH: ${{ vars.MOCK_HEALTH_PATH }}
+        run: |
+          set -euo pipefail
+          HEALTH_PATH="${MOCK_HEALTH_PATH:-/api/v1/ecommerce/categories}"
+          REMOTE="${MOCK_SERVER_BASE_URL:-}"
+
+          summary_backend() {
+            echo "## Mock backend verification" >> "$GITHUB_STEP_SUMMARY"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "| | |" >> "$GITHUB_STEP_SUMMARY"
+            echo "|---|---|" >> "$GITHUB_STEP_SUMMARY"
+            echo "| **Backend** | mock-server (\`mock-server/server.cjs\`) |" >> "$GITHUB_STEP_SUMMARY"
+            echo "| **API base** | \`$1\` |" >> "$GITHUB_STEP_SUMMARY"
+            echo "| **Smoke URL** | [$2]($2) |" >> "$GITHUB_STEP_SUMMARY"
+            echo "| **Result** | OK (HTTP 2xx) |" >> "$GITHUB_STEP_SUMMARY"
+            echo "| **Environment** | \`${{ needs.prepare.outputs.env_name }}\` |" >> "$GITHUB_STEP_SUMMARY"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "**GitHub Pages app:** https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/react-auth/" >> "$GITHUB_STEP_SUMMARY"
+          }
+
+          if [[ -n "${REMOTE}" ]]; then
+            BASE="${REMOTE%/}"
+            FULL="${BASE}${HEALTH_PATH}"
+            [[ "${FULL}" == *'?'* ]] && URL="${FULL}" || URL="${FULL}?page=1&limit=1"
+            echo "Using deployed mock at ${URL}"
+            curl -fsSL --retry 5 --retry-delay 3 --retry-all-errors \
+              -H "Accept: application/json" \
+              -o /tmp/mock-smoke.json \
+              --max-time 60 \
+              "${URL}"
+            echo "base=${BASE}" >> "$GITHUB_OUTPUT"
+            echo "health_url=${URL}" >> "$GITHUB_OUTPUT"
+            summary_backend "${BASE}" "${URL}"
+            exit 0
+          fi
+
+          node mock-server/server.cjs &
+          MOCK_PID=$!
+          trap 'kill "${MOCK_PID}" 2>/dev/null || true' EXIT
+
+          BASE="http://127.0.0.1:${MOCK_PORT}"
+          FULL="${BASE}${HEALTH_PATH}"
+          URL="${FULL}?page=1&limit=1"
+
+          echo "Waiting for mock-server on ${BASE}"
+          ready=
+          for _ in $(seq 1 45); do
+            if curl -fsS -H "Accept: application/json" -o /dev/null --max-time 2 "${URL}" 2>/dev/null; then
+              ready=1
+              break
+            fi
+            sleep 1
+          done
+          if [[ -z "${ready}" ]]; then
+            echo "::error::mock-server did not become ready within 45s (${URL})"
+            exit 1
+          fi
+
+          curl -fsSL --retry 3 --retry-delay 2 --retry-all-errors \
+            -H "Accept: application/json" \
+            -o /tmp/mock-smoke.json \
+            --max-time 60 \
+            "${URL}"
+
+          echo "base=${BASE}/api/v1" >> "$GITHUB_OUTPUT"
+          echo "health_url=${URL}" >> "$GITHUB_OUTPUT"
+          summary_backend "${BASE}/api/v1" "${URL}"

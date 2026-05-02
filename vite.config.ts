@@ -6,6 +6,12 @@ import { resolve } from 'node:path';
 export default defineConfig(({ mode }) => {
   const isProd = mode === 'production';
 
+  /** `docker-mock` → SPA + nginx proxy to mock-server (see docker-compose.yml). */
+  const prodEnvFile =
+    process.env.VITE_BUILD_PROFILE === 'docker-mock'
+      ? 'src/environments/environment.prod.docker.ts'
+      : 'src/environments/environment.prod.ts';
+
   const base = isProd ? '/react-auth/' : '/';
   /**
    * Mock server URL — only used in development for the dev-server proxy.
@@ -28,9 +34,7 @@ export default defineConfig(({ mode }) => {
       alias: {
         '@/environments/environment': resolve(
           process.cwd(),
-          isProd
-            ? 'src/environments/environment.prod.ts'
-            : 'src/environments/environment.ts',
+          isProd ? prodEnvFile : 'src/environments/environment.ts',
         ),
       },
     },
