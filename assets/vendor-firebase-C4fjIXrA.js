@@ -1,1 +1,0 @@
-import{s as e}from"./vendor-B-_duZHb.js";e(`firebase`,`12.10.0`,`app`);
