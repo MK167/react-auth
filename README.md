@@ -406,6 +406,12 @@ No action required — this is handled automatically by the build configuration.
 ---
 
 ## Commits Version 
+npm install -D semantic-release \                   
+@semantic-release/changelog \
+@semantic-release/git \
+@semantic-release/npm \
+@semantic-release/commit-analyzer \
+@semantic-release/release-notes-generator 
 
 feat: add login page        → MINOR (1.1.0)
 fix: fix auth bug           → PATCH (1.0.1)
