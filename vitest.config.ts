@@ -52,50 +52,76 @@ export default defineConfig({
   // the dev environment file (never the prod one).
   resolve: {
     alias: {
-      '@/environments/environment': resolve(process.cwd(), 'src/environments/environment.ts')
-    }
+      "@/environments/environment": resolve(
+        process.cwd(),
+        "src/environments/environment.ts",
+      ),
+    },
   },
   test: {
+    reporters: ['default', 'junit'],
+    outputFile: {
+      junit: './reports/junit.xml'
+    },
     // Code coverage configuration (run with: npm run test:coverage).
     coverage: {
-      provider: 'v8',
-      reporter: ['text', 'lcov', 'html'],
-      include: ['src/**/*.{ts,tsx}'],
-      exclude: ['src/**/*.test.{ts,tsx}', 'src/__tests__/**', 'src/main.tsx', 'src/App.tsx', 'src/**/*.types.ts', 'src/vite-env.d.ts']
+      provider: "v8",
+      reporter: ["text", "lcov", "html"],
+      include: ["src/**/*.{ts,tsx}"],
+      exclude: [
+        "src/**/*.test.{ts,tsx}",
+        "src/__tests__/**",
+        "src/main.tsx",
+        "src/App.tsx",
+        "src/**/*.types.ts",
+        "src/vite-env.d.ts",
+      ],
+      thresholds: {
+        lines: 80,
+        functions: 80,
+        branches: 70,
+        statements: 80,
+      },
     },
-    projects: [{
-      extends: true,
-      test: {
-        // Make describe / it / expect / vi available globally — no per-file import.
-        globals: true,
-        // jsdom simulates a browser DOM: localStorage, document.cookie, navigator.
-        environment: 'jsdom',
-        // Reset mock call history between every test automatically.
-        clearMocks: true,
-        // Restore spied-on functions to their real implementations between tests.
-        restoreMocks: true,
-        // Global setup that runs once before every test file.
-        setupFiles: ['./src/__tests__/setup.ts']
-      }
-    }, {
-      extends: true,
-      plugins: [
-      // The plugin will run tests for the stories defined in your Storybook config
-      // See options at: https://storybook.js.org/docs/next/writing-tests/integrations/vitest-addon#storybooktest
-      storybookTest({
-        configDir: path.join(dirname, '.storybook')
-      })],
-      test: {
-        name: 'storybook',
-        browser: {
-          enabled: true,
-          headless: true,
-          provider: playwright({}),
-          instances: [{
-            browser: 'chromium'
-          }]
-        }
-      }
-    }]
-  }
+    projects: [
+      {
+        extends: true,
+        test: {
+          // Make describe / it / expect / vi available globally — no per-file import.
+          globals: true,
+          // jsdom simulates a browser DOM: localStorage, document.cookie, navigator.
+          environment: "jsdom",
+          // Reset mock call history between every test automatically.
+          clearMocks: true,
+          // Restore spied-on functions to their real implementations between tests.
+          restoreMocks: true,
+          // Global setup that runs once before every test file.
+          setupFiles: ["./src/__tests__/setup.ts"],
+        },
+      },
+      {
+        extends: true,
+        plugins: [
+          // The plugin will run tests for the stories defined in your Storybook config
+          // See options at: https://storybook.js.org/docs/next/writing-tests/integrations/vitest-addon#storybooktest
+          storybookTest({
+            configDir: path.join(dirname, ".storybook"),
+          }),
+        ],
+        test: {
+          name: "storybook",
+          browser: {
+            enabled: true,
+            headless: true,
+            provider: playwright({}),
+            instances: [
+              {
+                browser: "chromium",
+              },
+            ],
+          },
+        },
+      },
+    ],
+  },
 });
