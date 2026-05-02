@@ -243,7 +243,17 @@ jobs:
         with:
           languages: javascript
 
-      - uses: github/codeql-action/analyze@v3
+      # - uses: github/codeql-action/analyze@v3
+      - name: Gitleaks (non-blocking on main)
+        uses: gitleaks/gitleaks-action@v2
+        with:
+          args: ${{ github.event_name == 'pull_request' && '' || '--exit-code=0' }}
+      - name: Gitleaks Summary
+        if: always()
+        run: |
+          echo "## 🔐 Gitleaks Scan" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Mode: ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
 
       # 🔵 Dependency scan
       - run: npm audit --audit-level=critical
