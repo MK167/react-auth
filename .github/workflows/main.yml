@@ -27,7 +27,7 @@ jobs:
       env_name: ${{ steps.env.outputs.env }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Detect Environment
         id: env
@@ -40,7 +40,7 @@ jobs:
             echo "env=dev" >> $GITHUB_OUTPUT
           fi
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
@@ -59,9 +59,9 @@ jobs:
     needs: prepare
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
@@ -76,7 +76,7 @@ jobs:
             echo "No build step found"
           fi
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: build
           path: |
@@ -98,11 +98,11 @@ jobs:
       version: ${{ steps.version.outputs.version }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
 
@@ -122,7 +122,7 @@ jobs:
       - name: Save Version Artifact
         run: echo "${{ steps.version.outputs.version }}" > version.txt
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: version
           path: version.txt
@@ -152,10 +152,10 @@ jobs:
             echo "has_openshift=false" >> $GITHUB_OUTPUT
           fi
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Download Version
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: version
 
@@ -179,7 +179,7 @@ jobs:
         run: exit 0
 
       - name: Login DockerHub
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
@@ -230,9 +230,9 @@ jobs:
     needs: docker
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
 
@@ -274,7 +274,7 @@ jobs:
     environment: ${{ needs.prepare.outputs.env_name }}
 
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: build
           path: dist
