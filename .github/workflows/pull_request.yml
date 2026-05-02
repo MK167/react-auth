@@ -3,6 +3,9 @@ name: PR Pipeline
 on:
   pull_request:
     branches: [main, develop]
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
 
@@ -34,6 +37,10 @@ jobs:
     steps:
       - uses: actions/checkout@v6.0.2
       - run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps
+
       - run: npm run test:coverage
 
   security-fs:
