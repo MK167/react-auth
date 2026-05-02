@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="ShopHub — discover thousands of products with fast shipping, easy returns, and secure checkout." />
+    <title>ShopHub</title>
+
+    <!--
+      Preconnect to the image CDN used by product photos.
+      Establishing the TCP+TLS handshake early saves ~200–400 ms on the
+      Largest Contentful Paint image, which is fetched from this origin.
+    -->
+    <link rel="preconnect" href="https://fastly.picsum.photos" crossorigin />
+    <link rel="preconnect" href="https://picsum.photos" crossorigin />
+
+    <!--
+      Apply dark class before first paint to prevent FOUC for dark-mode users.
+      This mirrors the logic in ThemeProvider (localStorage key: 'app-theme').
+      Must run synchronously — do NOT defer or async this script.
+      Flash of Unstyled Content (FOUC) is especially jarring in dark mode, 
+      so we apply the theme class as early as possible.  This is a common technique for theme management in React apps, and ensures that the correct theme is applied immediately on page load, even before React hydrates and takes over the DOM.
+    -->
+    <script>
+      try {
+        if (localStorage.getItem('app-theme') === 'dark') {
+          document.documentElement.classList.add('dark');
+        }
+      } catch (_) {}
+    </script>
+
+    <!--
+      Inline critical CSS for the pre-React loading skeleton.
+      Keeps the skeleton visually consistent with the GlobalLoader component
+      (same spinner, same card, same colours).  These styles are only a few
+      hundred bytes and avoid a render-blocking stylesheet request.
+    -->
+    <style>
+      @keyframes _sk-spin { to { transform: rotate(360deg); } }
+
+      #app-shell {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #f9fafb; /* gray-50 — matches light bg */
+      }
+
+      /* Dark-mode variant — applied immediately via the inline script above */
+      .dark #app-shell { background: #111827; /* gray-900 */ }
+
+      #app-shell-card {
+        background: #ffffff;
+        border-radius: 1rem;
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+        padding: 1.25rem;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+      }
+
+      .dark #app-shell-card { background: #1f2937; /* gray-800 */ }
+
+      #app-shell-spinner {
+        width: 1.25rem;
+        height: 1.25rem;
+        border: 3px solid #4f46e5;       /* indigo-600 — matches GlobalLoader */
+        border-top-color: transparent;
+        border-radius: 50%;
+        animation: _sk-spin 0.7s linear infinite;
+        flex-shrink: 0;
+        will-change: transform;          /* promotes to compositor layer */
+      }
+
+      #app-shell-label {
+        font-size: 0.875rem;
+        font-weight: 500;
+        color: #374151;                  /* gray-700 */
+        font-family: system-ui, sans-serif;
+        -webkit-user-select: none;
+        -moz-user-select: none;
+             user-select: none;
+      }
+
+      .dark #app-shell-label { color: #e5e7eb; /* gray-200 */ }
+    </style>
+    <script type="module" crossorigin src="/assets/index-BLorG1g1.js"></script>
+    <link rel="modulepreload" crossorigin href="/assets/rolldown-runtime-Dw2cE7zH.js">
+    <link rel="modulepreload" crossorigin href="/assets/vendor-icons-Gf-i8GLb.js">
+    <link rel="modulepreload" crossorigin href="/assets/vendor-react-Dyi9CrtE.js">
+    <link rel="modulepreload" crossorigin href="/assets/vendor-utils-DERzZyRb.js">
+    <link rel="modulepreload" crossorigin href="/assets/error.config-BU7y02T_.js">
+    <link rel="modulepreload" crossorigin href="/assets/error.store-o4IoNySp.js">
+    <link rel="modulepreload" crossorigin href="/assets/environment.prod-Cz1mEPPX.js">
+    <link rel="modulepreload" crossorigin href="/assets/cart.store-uy3UZblc.js">
+    <link rel="modulepreload" crossorigin href="/assets/auth.store-BnpbOZ2m.js">
+    <link rel="modulepreload" crossorigin href="/assets/ui.store-JgMnayNB.js">
+    <link rel="modulepreload" crossorigin href="/assets/Define-B8enYx7D.js">
+    <link rel="stylesheet" crossorigin href="/assets/index-BF-YfGmc.css">
+  </head>
+  <body>
+    <!--
+      The pre-React loading skeleton.
+      React's createRoot().render() replaces ALL children of #root when it
+      mounts, so this skeleton is automatically removed without any manual
+      cleanup — no flash, no extra JavaScript needed.
+    -->
+    <div id="root">
+      <div id="app-shell">
+        <div id="app-shell-card">
+          <div id="app-shell-spinner"></div>
+          <span id="app-shell-label">Loading…</span>
+        </div>
+      </div>
+    </div>
+
+  </body>
+</html>
