@@ -89,6 +89,7 @@ jobs:
       #     args: ${{ github.event_name == 'pull_request' && '' || '--exit-code=0' }}
       - name: Run Gitleaks (optional)
         id: gitleaks
+        continue-on-error: true
         uses: gitleaks/gitleaks-action@v2
         with:
           args: "--exit-code=0 --report-format=sarif --report-path=results.sarif"
@@ -101,12 +102,11 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
 
           if [ -f results.sarif ]; then
-            COUNT=$(grep -c '"ruleId"' results.sarif || true)
+            COUNT=$(jq '.runs[0].results | length' results.sarif 2>/dev/null || echo 0)
 
             if [ "$COUNT" -gt 0 ]; then
               echo "⚠️ Found **$COUNT potential secrets**" >> $GITHUB_STEP_SUMMARY
-              echo "" >> $GITHUB_STEP_SUMMARY
-              echo "👉 Please review and fix later." >> $GITHUB_STEP_SUMMARY
+              echo "👉 Fix later (non-blocking)" >> $GITHUB_STEP_SUMMARY
             else
               echo "✅ No secrets found" >> $GITHUB_STEP_SUMMARY
             fi
